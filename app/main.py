@@ -7,6 +7,11 @@ from app.core.errors import AppError, ErrorCode
 from app.core.middleware import RequestIDMiddleware
 from app.core.response import error_response
 
+from app.db.base import Base
+from app.db.session import engine
+from app.models.user import User
+from app.models.credit import Credit
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -16,7 +21,12 @@ app = FastAPI(
 app.add_middleware(RequestIDMiddleware)
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
-
+@app.on_event("startup")
+async def on_startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
+        
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
     return error_response(

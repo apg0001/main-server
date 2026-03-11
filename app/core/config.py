@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings, SettingConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #BaseSetting은 환경변수(env)와 설정값을 관리하는 클래스
 class Settings(BaseSettings):
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     
     #환경변수 설정
-    model_config = SettingConfigDict(
+    model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
     )
