@@ -1,0 +1,91 @@
+from typing import Any
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.chat import Chat
+from app.schemas.chats import ChatListQuery
+
+
+class ChatRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create_chat(
+        self,
+        user_id: int,
+        title: str | None,
+        context_type: str,
+    ) -> dict[str, Any]:
+        chat = Chat(
+            user_id=user_id,
+            title=title,
+            context_type=context_type,
+        )
+        self.db.add(chat)
+        await self.db.flush()
+        await self.db.refresh(chat)
+
+        return {
+            "id": chat.id,
+            "title": chat.title,
+            "context_type": chat.context_type,
+            "created_at": chat.created_at,
+        }
+
+    async def get_chat_by_id(self, chat_id: int) -> Chat | None:
+        stmt = select(Chat).where(Chat.id == chat_id).limit(1)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_chat_list(
+        self,
+        user_id: int,
+        query: ChatListQuery,
+    ) -> tuple[list[dict[str, Any]], int]:
+        stmt = (
+            select(
+                Chat.id,
+                Chat.title,
+                Chat.context_type,
+                Chat.last_message,
+                Chat.last_message_at,
+                Chat.created_at,
+            )
+            .where(Chat.user_id == user_id)
+        )
+
+        if query.q:
+            stmt = stmt.where(Chat.title.ilike(f"%{query.q.strip()}%"))
+
+        if query.context_type:
+            stmt = stmt.where(Chat.context_type == query.context_type.value)
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = await self.db.scalar(count_stmt)
+        total = total or 0
+
+        stmt = (
+            stmt.order_by(Chat.created_at.desc(), Chat.id.desc())
+            .offset((query.page - 1) * query.size)
+            .limit(query.size)
+        )
+
+        result = await self.db.execute(stmt)
+        rows = result.mappings().all()
+
+        return [dict(row) for row in rows], total
+
+    async def update_chat_conversation_and_last_message(
+        self,
+        chat: Chat,
+        external_conversation_id: str | None,
+        last_message: str | None,
+        last_message_at,
+    ) -> None:
+        if external_conversation_id and not chat.external_conversation_id:
+            chat.external_conversation_id = external_conversation_id
+
+        chat.last_message = last_message
+        chat.last_message_at = last_message_at
+        await self.db.flush()
