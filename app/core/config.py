@@ -1,7 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
+    port: int = Field(default=8001, alias="PORT")
     app_name: str = "News Monitoring API"
     api_v1_prefix: str = "/api/v1"
     debug: bool = True
