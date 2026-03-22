@@ -41,3 +41,21 @@ dist/
 # Local config files
 config.local.py
 secrets.py
+
+# python
+__pycache__/
+*.pyc
+
+# virtual env
+venv/
+venv311/
+
+# env
+.env
+
+# vscode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
