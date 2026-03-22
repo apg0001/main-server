@@ -1,44 +1,22 @@
-from fastapi import APIRouter, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.deps import get_current_user, get_db
-from app.core.response import success_response
-from app.models.user import User
-from app.schemas.crawl_run import CreateCrawlRunRequest
-from app.services.crawl_run_service import (
-    get_crawl_run_detail,
-    request_crawl_run,
-)
-
-router = APIRouter(prefix="/crawl-runs", tags=["crawl-runs"])
+from app.db.base import Base
 
 
-@router.post("", status_code=202)
-async def create_crawl_run(
-    request: Request,
-    payload: CreateCrawlRunRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    data = await request_crawl_run(
-        db=db,
-        current_user=current_user,
-        keyword_ids=payload.keyword_ids,
-        force=payload.force,
-    )
-    return success_response(request, data=data, status_code=202)
+class CrawlRun(Base):
+    __tablename__ = "crawl_runs"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="queued")
+    force_run: Mapped[bool] = mapped_column(Boolean, default=False)
+    article_count: Mapped[int] = mapped_column(Integer, default=0)
 
-@router.get("/{run_id}")
-async def get_crawl_run(
-    request: Request,
-    run_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    data = await get_crawl_run_detail(
-        db=db,
-        current_user=current_user,
-        run_id=run_id,
-    )
-    return success_response(request, data=data)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="crawl_runs")
+    run_keywords = relationship("CrawlRunKeyword", back_populates="crawl_run")
