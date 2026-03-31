@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, func, select
@@ -76,13 +77,16 @@ class ChatRepository:
 
         return [dict(row) for row in rows], total
 
+
+
     async def update_chat_conversation_and_last_message(
         self,
         chat: Chat,
         external_conversation_id: str | None,
         last_message: str | None,
-        last_message_at,
+        last_message_at: datetime | None,
     ) -> None:
+
         if external_conversation_id and not chat.external_conversation_id:
             chat.external_conversation_id = external_conversation_id
 

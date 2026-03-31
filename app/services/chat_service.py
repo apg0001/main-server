@@ -1,92 +1,133 @@
-from datetime import datetime
-from enum import Enum
-from typing import List, Optional
+from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
-
-# =========================
-# ENUMS
-# =========================
-
-class ChatContextType(str, Enum):
-    GENERAL = "GENERAL"
-    NEWS_ANALYSIS = "NEWS_ANALYSIS"
-    ARTICLE_QA = "ARTICLE_QA"
-
-
-# =========================
-# CREATE CHAT
-# =========================
-
-class ChatCreateRequest(BaseModel):
-    title: Optional[str] = Field(default=None, max_length=255)
-    context_type: ChatContextType = ChatContextType.GENERAL
+from app.core.errors import ErrorCode, build_error
+from app.repositories.chat_repository import ChatRepository
+from app.services.dify_service import DifyService
+from app.schemas.chats import (
+    ChatDetailResponse,
+    ChatListItem,
+    ChatListQuery,
+    ChatListResponse,
+    ChatSendMessageRequest,
+    ChatSendMessageResponse,
+    PageInfo,
+)
 
 
-class ChatCreateResponse(BaseModel):
-    id: int
-    title: Optional[str]
-    context_type: str
-    created_at: datetime
+class ChatService:
+    def __init__(
+        self,
+        repository: ChatRepository,
+        dify_service: DifyService | None = None,
+    ):
+        self.repository = repository
+        self.dify_service = dify_service or DifyService()
 
+    async def get_chat_list(
+        self,
+        user_id: int,
+        query: ChatListQuery,
+    ) -> ChatListResponse:
+        rows, total = await self.repository.get_chat_list(
+            user_id=user_id,
+            query=query,
+        )
 
-# =========================
-# LIST
-# =========================
+        items = [ChatListItem(**row) for row in rows]
+        has_next = query.page * query.size < total
 
-class ChatListQuery(BaseModel):
-    page: int = Field(default=1, ge=1)
-    size: int = Field(default=20, ge=1, le=100)
-    q: Optional[str] = None
-    context_type: Optional[ChatContextType] = None
+        return ChatListResponse(
+            items=items,
+            page_info=PageInfo(
+                page=query.page,
+                size=query.size,
+                total=total,
+                has_next=has_next,
+            ),
+        )
 
+    async def get_chat_detail(
+        self,
+        user_id: int,
+        chat_id: int,
+    ) -> ChatDetailResponse:
+        chat = await self.repository.get_chat_by_id(chat_id)
 
-class PageInfo(BaseModel):
-    page: int
-    size: int
-    total: int
-    has_next: bool
+        if not chat:
+            raise build_error(ErrorCode.NOT_FOUND, "chat not found")
 
+        if chat.user_id != user_id:
+            raise build_error(
+                ErrorCode.FORBIDDEN,
+                "You do not have permission to access this chat",
+            )
 
-class ChatListItem(BaseModel):
-    id: int
-    title: Optional[str]
-    context_type: str
-    last_message: Optional[str]
-    last_message_at: Optional[datetime]
-    created_at: datetime
+        return ChatDetailResponse(
+            id=chat.id,
+            title=chat.title,
+            context_type=chat.context_type,
+            external_conversation_id=chat.external_conversation_id,
+            last_message=chat.last_message,
+            last_message_at=chat.last_message_at,
+            created_at=chat.created_at,
+        )
 
+    async def send_message(
+        self,
+        user_id: int,
+        chat_id: int,
+        payload: ChatSendMessageRequest,
+    ) -> ChatSendMessageResponse:
+        chat = await self.repository.get_chat_by_id(chat_id)
 
-class ChatListResponse(BaseModel):
-    items: List[ChatListItem]
-    page_info: PageInfo
+        if not chat:
+            raise build_error(ErrorCode.NOT_FOUND, "chat not found")
 
+        if chat.user_id != user_id:
+            raise build_error(
+                ErrorCode.FORBIDDEN,
+                "You do not have permission to access this chat",
+            )
 
-# =========================
-# DETAIL (❗ 메시지 제거됨)
-# =========================
+        # 기사 목록이 있으면 Dify inputs로 전달
+        inputs = {
+            "chat_id": chat.id,
+            "context_type": chat.context_type,
+            "article_ids": payload.article_ids or [],
+        }
 
-class ChatDetailResponse(BaseModel):
-    id: int
-    title: Optional[str]
-    context_type: str
-    external_conversation_id: Optional[str]
-    last_message: Optional[str]
-    last_message_at: Optional[datetime]
-    created_at: datetime
+        try:
+            dify_result = await self.dify_service.send_chat_message(
+                query=payload.message,
+                user=str(user_id),
+                conversation_id=chat.external_conversation_id,
+                inputs=inputs,
+            )
+        except RuntimeError:
+            raise build_error(
+                ErrorCode.UPSTREAM_ERROR,
+                "LLM service temporarily unavailable",
+            )
 
+        conversation_id = dify_result.get("conversation_id")
+        answer = dify_result.get("answer")
+        created_at = dify_result.get("created_at")
 
-# =========================
-# SEND MESSAGE
-# =========================
+        if not answer:
+            raise build_error(
+                ErrorCode.UPSTREAM_ERROR,
+                "LLM service temporarily unavailable",
+            )
 
-class ChatSendMessageRequest(BaseModel):
-    message: str = Field(..., min_length=1)
-    article_ids: Optional[List[int]] = None
+        await self.repository.update_chat_conversation_and_last_message(
+            chat=chat,
+            external_conversation_id=conversation_id,
+            last_message=answer,
+            last_message_at=created_at,
+        )
 
-
-class ChatSendMessageResponse(BaseModel):
-    answer: str
-    conversation_id: Optional[str]
-    created_at: datetime
+        return ChatSendMessageResponse(
+            answer=answer,
+            conversation_id=conversation_id,
+            created_at=created_at,
+        )

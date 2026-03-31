@@ -6,6 +6,9 @@ from app.api.v1.keywords import router as keywords_router
 from app.api.v1.articles import router as articles_router
 from app.api.v1.feedbacks import router as feedbacks_router
 from app.api.v1.importance import router as importance_router
+from app.api.v1.crawl_runs import router as crawl_runs_router
+from app.api.v1.chats import router as chats_router
+from app.api.v1.credits import router as credits_router
 
 api_router = APIRouter()
 
@@ -15,3 +18,6 @@ api_router.include_router(keywords_router)
 api_router.include_router(articles_router)
 api_router.include_router(feedbacks_router)
 api_router.include_router(importance_router)
+api_router.include_router(crawl_runs_router)
+api_router.include_router(chats_router)
+api_router.include_router(credits_router)

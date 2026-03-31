@@ -7,10 +7,11 @@ from app.core.deps import get_current_user
 from app.core.response import success_response
 from app.models.user import User
 
-router = APIRouter()
+router = APIRouter(tags=["feedbacks"])
 
 
-class ArticleFeedbackRequest(BaseModel):
+class FeedbackCreateRequest(BaseModel):
+    article_id: int
     action: Literal["LIKE", "DISLIKE"]
 
 
@@ -19,92 +20,19 @@ class RankingFeedbackRequest(BaseModel):
     keyword_id: int | None = None
 
 
-@router.post("/articles/{article_id}/feedback")
+@router.post("/feedbacks")
 async def create_or_update_feedback(
-    article_id: int,
     request: Request,
-    body: ArticleFeedbackRequest,
+    body: FeedbackCreateRequest,
     current_user: User = Depends(get_current_user),
 ):
     return success_response(
         request,
         data={
-            "article_id": article_id,
+            "article_id": body.article_id,
             "action": body.action,
             "created": True,
             "updated_at": "2026-02-21T11:10:00Z",
-        },
-    )
-
-
-@router.get("/articles/{article_id}/feedbacks")
-async def get_my_feedback_for_article(
-    article_id: int,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-):
-    return success_response(
-        request,
-        data={
-            "article_id": article_id,
-            "action": "LIKE",
-            "created_at": "2026-02-21T11:10:00Z",
-            "updated_at": "2026-02-21T11:12:00Z",
-        },
-    )
-
-
-@router.get("/feedbacks/me")
-async def get_my_feedbacks(
-    request: Request,
-    page: int = 1,
-    size: int = 20,
-    action: Literal["LIKE", "DISLIKE"] | None = None,
-    keyword_id: int | None = None,
-    q: str | None = None,
-    current_user: User = Depends(get_current_user),
-):
-    items = [
-        {
-            "article_id": 101,
-            "action": "LIKE",
-            "updated_at": "2026-02-21T11:12:00Z",
-            "article": {
-                "title": "OpenAI releases new model",
-                "url": "https://example.com/articles/101",
-                "source": "Example News",
-                "published_at": "2026-02-21T09:10:00Z",
-                "keyword_id": 12,
-                "importance": 0.82,
-            },
-        }
-    ]
-
-    return success_response(
-        request,
-        data={
-            "items": items,
-            "page_info": {
-                "page": page,
-                "size": size,
-                "total": len(items),
-                "has_next": False,
-            },
-        },
-    )
-
-
-@router.delete("/feedbacks/{feedback_id}")
-async def delete_feedback(
-    feedback_id: int,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-):
-    return success_response(
-        request,
-        data={
-            "deleted": True,
-            "feedback_id": feedback_id,
         },
     )
 

@@ -7,6 +7,7 @@ from app.db.base import Base
 
 class CreditTransaction(Base):
     __tablename__ = "credit_transactions"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(

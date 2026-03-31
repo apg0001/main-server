@@ -132,49 +132,6 @@ async def get_article_importance(
         raise
 
 
-@router.post("/{article_id}/feedback")
-async def upsert_article_feedback(
-    article_id: int,
-    payload: ArticleFeedbackRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    service = ArticleService(ArticleRepository(db))
-
-    try:
-        result = await service.upsert_article_feedback(
-            user_id=current_user.id,
-            article_id=article_id,
-            payload=payload,
-        )
-        await db.commit()
-        return success_response(data=result.model_dump())
-
-    except ValueError as e:
-        await db.rollback()
-        if str(e) == "NOT_FOUND":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="article not found",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-    except PermissionError as e:
-        await db.rollback()
-        if str(e) == "FORBIDDEN":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access this article",
-            )
-        raise
-
-    except Exception:
-        await db.rollback()
-        raise
-
 
 @router.get("/{article_id}/feedback")
 async def get_my_article_feedback(
