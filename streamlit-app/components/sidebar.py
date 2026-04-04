@@ -1,13 +1,23 @@
 import streamlit as st
 
-from api.keywords import create_keyword, delete_keyword, get_keywords
+from api.keywords import (
+    create_keyword,
+    delete_keyword,
+    get_keywords,
+    update_keyword_active,
+)
 from utils.session import reset_chat, set_selected_keyword
 
 
 def render_sidebar():
     st.sidebar.title("키워드 관리")
 
-    keywords = get_keywords()
+    try:
+        keywords, page_info = get_keywords(page=1, size=100)
+        st.session_state["keyword_page_info"] = page_info
+    except Exception as e:
+        st.sidebar.error(f"키워드 목록 조회 실패: {e}")
+        keywords = []
 
     st.sidebar.subheader("키워드 리스트")
 
@@ -16,38 +26,54 @@ def render_sidebar():
 
     for kw in keywords:
         keyword_id = kw.get("id")
-        keyword_name = kw.get("name", "이름 없음")
+        keyword_name = kw.get("keyword", "이름 없음")
+        is_active = kw.get("is_active", True)
 
-        col1, col2 = st.sidebar.columns([4, 1])
+        row1, row2 = st.sidebar.columns([4, 1])
 
-        if col1.button(keyword_name, key=f"kw_{keyword_id}", use_container_width=True):
+        label = f"{keyword_name}"
+        if not is_active:
+            label += " (비활성)"
+
+        if row1.button(label, key=f"kw_{keyword_id}", use_container_width=True):
             set_selected_keyword(keyword_id, keyword_name)
             reset_chat()
             st.rerun()
 
-        if col2.button("X", key=f"del_{keyword_id}", use_container_width=True):
+        with row2:
+            if st.button("X", key=f"del_{keyword_id}", use_container_width=True):
+                try:
+                    delete_keyword(keyword_id)
+                    if st.session_state.get("selected_keyword_id") == keyword_id:
+                        st.session_state["selected_keyword_id"] = None
+                        st.session_state["selected_keyword_name"] = None
+                        reset_chat()
+                    st.rerun()
+                except Exception as e:
+                    st.sidebar.error(f"삭제 실패: {e}")
+
+        toggle_key = f"toggle_{keyword_id}"
+        new_active = st.sidebar.checkbox(
+            f"{keyword_name} 활성",
+            value=is_active,
+            key=toggle_key,
+        )
+        if new_active != is_active:
             try:
-                delete_keyword(keyword_id)
-                if st.session_state.get("selected_keyword_id") == keyword_id:
-                    st.session_state["selected_keyword_id"] = None
-                    st.session_state["selected_keyword_name"] = None
-                    reset_chat()
-                st.sidebar.success("삭제되었습니다.")
+                update_keyword_active(keyword_id, new_active)
                 st.rerun()
             except Exception as e:
-                st.sidebar.error(f"삭제 실패: {e}")
+                st.sidebar.error(f"상태 변경 실패: {e}")
 
     st.sidebar.divider()
 
     new_keyword = st.sidebar.text_input("새 키워드", placeholder="예: 하이닉스")
-
     if st.sidebar.button("키워드 추가", use_container_width=True):
         if not new_keyword.strip():
             st.sidebar.warning("키워드를 입력해주세요.")
         else:
             try:
                 create_keyword(new_keyword.strip())
-                st.sidebar.success("키워드가 추가되었습니다.")
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"추가 실패: {e}")

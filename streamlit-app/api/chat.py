@@ -1,23 +1,30 @@
-from api.client import api_post
+from api.client import ai_post
 
 
-def send_chat_message(message: str, keyword_id=None):
+def send_chat_message(message: str, keyword: str | None = None):
+    """
+    AI 서버 명세 캡처 기준 /chat-messages 사용.
+    실제 Dify/AI 서버 스펙에 따라 inputs, user 등은 조정될 수 있음.
+    """
     payload = {
-        "message": message,
+        "query": message,
+        "response_mode": "blocking",
+        "user": "streamlit-user",
     }
 
-    if keyword_id:
-        payload["keyword_id"] = keyword_id
+    if keyword:
+        payload["inputs"] = {"keyword": keyword}
+    else:
+        payload["inputs"] = {}
 
-    # 실제 AI 서버 연동 스펙에 따라 수정 가능
-    result = api_post("/chat-messages", payload)
+    result = ai_post("/chat-messages", payload, with_auth=False)
 
     if isinstance(result, dict):
         return (
             result.get("answer")
-            or result.get("response")
             or result.get("message")
             or result.get("content")
+            or result.get("text")
             or "응답이 없습니다."
         )
 

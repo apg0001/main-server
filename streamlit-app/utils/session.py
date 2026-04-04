@@ -10,8 +10,10 @@ def init_state():
         "selected_keyword_name": None,
         "chat_messages": [],
         "articles": [],
-        "crawl_runs": [],
         "importance_items": [],
+        "keyword_page_info": None,
+        "article_page_info": None,
+        "importance_page_info": None,
     }
 
     for key, value in defaults.items():

@@ -8,24 +8,29 @@ def login(email: str, password: str):
         "email": email,
         "password": password,
     }
-    result = api_post("/auth/login", payload)
+    result = api_post("/auth/login", payload, with_auth=False)
 
-    # 백엔드 응답 구조에 따라 조정 필요
-    # 예시:
-    # {
-    #   "accessToken": "...",
-    #   "refreshToken": "...",
-    #   "user": {...}
-    # }
-    access_token = result.get("accessToken") or result.get("access_token")
-    refresh_token = result.get("refreshToken") or result.get("refresh_token")
-    user = result.get("user")
+    # 실제 LoginResponse는 snake_case
+    access_token = result.get("access_token")
+    refresh_token = result.get("refresh_token")
 
     st.session_state["access_token"] = access_token
     st.session_state["refresh_token"] = refresh_token
-    st.session_state["user"] = user
+
+    # 로그인 후 /users/me 따로 조회
+    try:
+        st.session_state["user"] = get_me()
+    except Exception:
+        st.session_state["user"] = None
 
     return result
+
+
+def logout():
+    refresh_token = st.session_state.get("refresh_token")
+    if not refresh_token:
+        return None
+    return api_post("/auth/logout", {"refresh_token": refresh_token})
 
 
 def get_me():

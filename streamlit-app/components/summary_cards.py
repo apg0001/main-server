@@ -1,55 +1,66 @@
 import streamlit as st
 
-from api.articles import get_importance_list
-from api.crawl_runs import get_crawl_runs
+from api.client import api_post
+from api.articles import get_articles
+from api.client import api_get
 
 
 def render_summary_cards():
     selected_keyword = st.session_state.get("selected_keyword_name")
     keyword_id = st.session_state.get("selected_keyword_id")
-    articles = st.session_state.get("articles", [])
 
-    importance_items = []
-    crawl_runs = []
+    article_count = 0
+    importance_count = 0
 
     try:
-        importance_items = get_importance_list(keyword_id=keyword_id)
+        articles, _ = get_articles(keyword_id=keyword_id, page=1, size=100)
+        article_count = len(articles)
     except Exception:
         pass
 
     try:
-        crawl_runs = get_crawl_runs(page=1, size=5)
+        result = api_get(
+            "/importance",
+            params={"page": 1, "size": 100, "keyword_id": keyword_id} if keyword_id else {"page": 1, "size": 100},
+        )
+        importance_items = result.get("items", []) if isinstance(result, dict) else []
+        st.session_state["importance_items"] = importance_items
+        importance_count = len(importance_items)
     except Exception:
-        pass
-
-    st.session_state["importance_items"] = importance_items
-    st.session_state["crawl_runs"] = crawl_runs
-
-    article_count = len(articles)
-    importance_count = len(importance_items)
-    crawl_count = len(crawl_runs)
+        st.session_state["importance_items"] = []
 
     col1, col2, col3 = st.columns(3)
-
     col1.metric("선택 키워드", selected_keyword if selected_keyword else "-")
     col2.metric("기사 수", article_count)
     col3.metric("중요도 결과 수", importance_count)
 
-    st.markdown("### 최근 실행 이력")
-    if crawl_runs:
-        for run in crawl_runs[:3]:
-            run_id = run.get("id", "-")
-            status = run.get("status", "UNKNOWN")
-            created_at = run.get("createdAt") or run.get("created_at", "")
-            st.write(f"- 실행 #{run_id} | 상태: {status} | 생성시각: {created_at}")
-    else:
-        st.caption("실행 이력이 없습니다.")
-
     st.markdown("### 중요도 상위 항목")
-    if importance_items:
-        for item in importance_items[:3]:
-            title = item.get("title", "제목 없음")
-            score = item.get("score", "-")
-            st.write(f"- {title} (점수: {score})")
+    items = st.session_state.get("importance_items", [])
+    if items:
+        for item in items[:5]:
+            st.write(
+                f"- {item.get('title', '제목 없음')} | "
+                f"score={item.get('score')} | status={item.get('status')}"
+            )
     else:
         st.caption("중요도 데이터가 없습니다.")
+
+    st.markdown("### 중요도 실행")
+    if st.button("선택 키워드 기사 중요도 계산"):
+        if not keyword_id:
+            st.warning("먼저 키워드를 선택하세요.")
+            return
+
+        try:
+            articles, _ = get_articles(keyword_id=keyword_id, page=1, size=20)
+            article_ids = [a["id"] for a in articles if a.get("id")]
+
+            if not article_ids:
+                st.warning("해당 키워드에 연결된 기사가 없습니다.")
+                return
+
+            result = api_post("/importance/run", {"article_ids": article_ids})
+            st.success("중요도 계산 요청 완료")
+            st.json(result)
+        except Exception as e:
+            st.error(f"중요도 실행 실패: {e}")

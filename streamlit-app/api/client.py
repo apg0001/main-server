@@ -7,39 +7,27 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000/api/v1")
-TIMEOUT = 15
+AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
+TIMEOUT = 20
 
 
 class APIError(Exception):
     pass
 
 
-def get_headers() -> Dict[str, str]:
-    headers = {
-        "Content-Type": "application/json",
-    }
+def get_headers(with_auth: bool = True) -> Dict[str, str]:
+    headers = {"Content-Type": "application/json"}
 
-    token = st.session_state.get("access_token")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    if with_auth:
+        token = st.session_state.get("access_token")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
     return headers
 
 
 def unwrap_response(response_json: Dict[str, Any]) -> Any:
-    """
-    공통 응답 형식:
-    {
-      "success": true,
-      "data": ...,
-      "error": null,
-      "meta": ...
-    }
-    를 가정하고 data만 꺼냄.
-    공통 응답 형식이 아니면 원본 그대로 반환.
-    """
     if isinstance(response_json, dict) and "data" in response_json:
         return response_json["data"]
     return response_json
@@ -66,25 +54,34 @@ def handle_response(response: requests.Response) -> Any:
     return unwrap_response(result)
 
 
-def api_get(path: str, params: Optional[Dict[str, Any]] = None) -> Any:
-    url = f"{BASE_URL}{path}"
-    response = requests.get(url, headers=get_headers(), params=params, timeout=TIMEOUT)
+def _request(method: str, base_url: str, path: str, *, data=None, params=None, with_auth=True):
+    url = f"{base_url}{path}"
+    response = requests.request(
+        method=method,
+        url=url,
+        headers=get_headers(with_auth=with_auth),
+        json=data,
+        params=params,
+        timeout=TIMEOUT,
+    )
     return handle_response(response)
 
 
-def api_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    url = f"{BASE_URL}{path}"
-    response = requests.post(url, headers=get_headers(), json=data, timeout=TIMEOUT)
-    return handle_response(response)
+def api_get(path: str, params: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
+    return _request("GET", BASE_URL, path, params=params, with_auth=with_auth)
 
 
-def api_patch(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    url = f"{BASE_URL}{path}"
-    response = requests.patch(url, headers=get_headers(), json=data, timeout=TIMEOUT)
-    return handle_response(response)
+def api_post(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
+    return _request("POST", BASE_URL, path, data=data, with_auth=with_auth)
 
 
-def api_delete(path: str) -> Any:
-    url = f"{BASE_URL}{path}"
-    response = requests.delete(url, headers=get_headers(), timeout=TIMEOUT)
-    return handle_response(response)
+def api_patch(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
+    return _request("PATCH", BASE_URL, path, data=data, with_auth=with_auth)
+
+
+def api_delete(path: str, with_auth: bool = True) -> Any:
+    return _request("DELETE", BASE_URL, path, with_auth=with_auth)
+
+
+def ai_post(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = False) -> Any:
+    return _request("POST", AI_BASE_URL, path, data=data, with_auth=with_auth)

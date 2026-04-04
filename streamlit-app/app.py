@@ -13,6 +13,7 @@ load_dotenv()
 
 APP_TITLE = os.getenv("APP_TITLE", "AI 기반 기사 모니터링")
 
+
 st.set_page_config(
     page_title=APP_TITLE,
     page_icon="📰",
@@ -24,7 +25,7 @@ init_state()
 
 def render_header():
     st.title(APP_TITLE)
-    st.caption("키워드 기반 기사 조회 및 AI 채팅 대시보드")
+    st.caption("메인서버 + AI서버 연동 Streamlit 화면")
 
     selected_keyword = st.session_state.get("selected_keyword_name")
     if selected_keyword:
@@ -37,13 +38,13 @@ def main():
     render_sidebar()
     render_header()
 
-    top_col1, top_col2 = st.columns([3, 2])
+    left, right = st.columns([3, 2])
 
-    with top_col1:
+    with left:
         st.markdown("## 무엇을 도와드릴까요?")
         render_chat_box()
 
-    with top_col2:
+    with right:
         render_summary_cards()
 
     st.markdown("---")
