@@ -18,15 +18,10 @@ def render_chat_box():
     if prompt:
         st.session_state["chat_messages"].append({"role": "user", "content": prompt})
 
-        selected_keyword = st.session_state.get("selected_keyword_name")
-
         with st.chat_message("assistant"):
             with st.spinner("응답 생성 중..."):
                 try:
-                    answer = send_chat_message(
-                        message=prompt,
-                        keyword=selected_keyword,
-                    )
+                    answer = send_chat_message(message=prompt)
                 except Exception as e:
                     answer = (
                         f"채팅 요청 실패: {e}\n\n"
