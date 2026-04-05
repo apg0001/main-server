@@ -11,31 +11,27 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
 AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
 TIMEOUT = 20
 
+CHATFLOW_API_KEY = os.getenv("CHATFLOW_API_KEY")
+SUMMARY_WORKFLOW_API_KEY = os.getenv("SUMMARY_WORKFLOW_API_KEY")
+SCORING_WORKFLOW_API_KEY = os.getenv("SCORING_WORKFLOW_API_KEY")
+
 
 class APIError(Exception):
     pass
 
 
-DIFY_API_KEY = os.getenv("DIFY_API_KEY")
-
-def get_headers(with_auth: bool = True, is_ai: bool = False) -> Dict[str, str]:
+def get_headers(with_auth: bool = True) -> Dict[str, str]:
     headers = {
         "Content-Type": "application/json",
     }
 
-    # 👉 AI 서버용
-    if is_ai:
-        if DIFY_API_KEY:
-            headers["Authorization"] = f"Bearer {DIFY_API_KEY}"
-        return headers
-
-    # 👉 일반 API용
     if with_auth:
         token = st.session_state.get("access_token")
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
     return headers
+
 
 def unwrap_response(response_json: Dict[str, Any]) -> Any:
     if isinstance(response_json, dict) and "data" in response_json:
@@ -64,12 +60,26 @@ def handle_response(response: requests.Response) -> Any:
     return unwrap_response(result)
 
 
-def _request(method: str, base_url: str, path: str, *, data=None, params=None, with_auth=True):
+def _request(
+    method: str,
+    base_url: str,
+    path: str,
+    *,
+    data=None,
+    params=None,
+    with_auth=True,
+    headers: Optional[Dict[str, str]] = None,
+):
     url = f"{base_url}{path}"
+
+    final_headers = get_headers(with_auth=with_auth)
+    if headers:
+        final_headers.update(headers)
+
     response = requests.request(
         method=method,
         url=url,
-        headers=get_headers(with_auth=with_auth),
+        headers=final_headers,
         json=data,
         params=params,
         timeout=TIMEOUT,
@@ -93,12 +103,43 @@ def api_delete(path: str, with_auth: bool = True) -> Any:
     return _request("DELETE", BASE_URL, path, with_auth=with_auth)
 
 
-def ai_post(path: str, data=None) -> Any:
+def ai_chat_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
+    if not CHATFLOW_API_KEY:
+        raise APIError("CHATFLOW_API_KEY가 설정되지 않았습니다.")
+
     return _request(
         "POST",
         AI_BASE_URL,
         path,
         data=data,
-        with_auth=False,   # ❗ JWT 안 씀
-        headers=get_headers(is_ai=True)
+        with_auth=False,
+        headers={"Authorization": f"Bearer {CHATFLOW_API_KEY}"},
+    )
+
+
+def ai_summary_workflow_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
+    if not SUMMARY_WORKFLOW_API_KEY:
+        raise APIError("SUMMARY_WORKFLOW_API_KEY가 설정되지 않았습니다.")
+
+    return _request(
+        "POST",
+        AI_BASE_URL,
+        path,
+        data=data,
+        with_auth=False,
+        headers={"Authorization": f"Bearer {SUMMARY_WORKFLOW_API_KEY}"},
+    )
+
+
+def ai_scoring_workflow_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
+    if not SCORING_WORKFLOW_API_KEY:
+        raise APIError("SCORING_WORKFLOW_API_KEY가 설정되지 않았습니다.")
+
+    return _request(
+        "POST",
+        AI_BASE_URL,
+        path,
+        data=data,
+        with_auth=False,
+        headers={"Authorization": f"Bearer {SCORING_WORKFLOW_API_KEY}"},
     )
