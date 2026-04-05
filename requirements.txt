@@ -16,3 +16,4 @@ streamlit
 requests
 python-dotenv
 asyncpg
+argon2-cffi
