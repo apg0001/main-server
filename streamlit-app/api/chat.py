@@ -14,8 +14,7 @@ def send_chat_message(message: str, keyword: str | None = None):
     else:
         payload["inputs"] = {}
 
-    result = ai_post("/chat-messages", payload, with_auth=True)
-
+    result = ai_post("/chat-messages", payload)
     if isinstance(result, dict):
         return (
             result.get("answer")
