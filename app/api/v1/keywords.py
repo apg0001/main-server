@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.transnews_client import TransNewsClient
+from app.services.crawl_run_service import CrawlRunService
+
 from app.core.deps import get_current_user, get_db
 from app.core.response import success_response
 from app.models.user import User
