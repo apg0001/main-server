@@ -16,6 +16,7 @@ class User(Base, TimestampMixin):
     name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     default_language: Mapped[str] = mapped_column(String(10), nullable=False, default="ko", server_default="ko")
 
+    chats = relationship("Chat", back_populates="user")
     keywords = relationship("Keyword", back_populates="user", cascade="all, delete-orphan")
     feedbacks = relationship("Feedback", back_populates="user", cascade="all, delete-orphan")
     importance_scores = relationship("ImportanceScore", back_populates="user", cascade="all, delete-orphan")
@@ -33,3 +34,4 @@ class User(Base, TimestampMixin):
         "AuthRefreshToken",
         back_populates="user"
     )
+    
