@@ -18,13 +18,23 @@ def login(email: str, password: str):
     if not access_token:
         raise ValueError(f"로그인 응답에 access_token이 없습니다: {result}")
 
-    set_auth_state(access_token=access_token, refresh_token=refresh_token, user=None)
+    # 1) 먼저 임시로 토큰 저장
+    st.session_state["access_token"] = access_token
+    st.session_state["refresh_token"] = refresh_token
 
+    # 2) 토큰으로 실제 인증 검증
     try:
         me = get_me()
-        st.session_state["user"] = me
-    except Exception:
-        pass
+    except Exception as e:
+        clear_auth_state()
+        raise ValueError(f"로그인은 됐지만 토큰 검증에 실패했습니다: {e}")
+
+    # 3) 검증 성공한 경우만 로그인 상태 확정
+    set_auth_state(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=me,
+    )
 
     return result
 
