@@ -7,11 +7,13 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
+    debug: bool = True
+
     dify_base_url: str
     dify_api_key: str
     dify_request_timeout: int = 30
 
-    transnews_base_url: str
+    transnews_base_url: str = "http://localhost:8000"
     transnews_request_timeout: int = 20
 
     model_config = SettingsConfigDict(
