@@ -111,13 +111,12 @@ class CrawlRunService:
     async def _upsert_article(self, item: dict[str, Any]) -> Article | None:
         from sqlalchemy import select
 
-        url = item.get("url")
-        if not url:
-            return None
+        url = item.get("url") or item.get("link")
+        published_at = item.get("published_at") or item.get("published")
 
         title = item.get("title") or "제목 없음"
         publisher = item.get("publisher") or item.get("source")
-        published_at = item.get("published_at")
+        
 
         result = await self.db.execute(select(Article).where(Article.url == url))
         article = result.scalar_one_or_none()
