@@ -16,18 +16,26 @@ class APIError(Exception):
     pass
 
 
-def get_headers(with_auth: bool = True) -> Dict[str, str]:
+DIFY_API_KEY = os.getenv("DIFY_API_KEY")
+
+def get_headers(with_auth: bool = True, is_ai: bool = False) -> Dict[str, str]:
     headers = {
         "Content-Type": "application/json",
     }
 
+    # 👉 AI 서버용
+    if is_ai:
+        if DIFY_API_KEY:
+            headers["Authorization"] = f"Bearer {DIFY_API_KEY}"
+        return headers
+
+    # 👉 일반 API용
     if with_auth:
         token = st.session_state.get("access_token")
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
     return headers
-
 
 def unwrap_response(response_json: Dict[str, Any]) -> Any:
     if isinstance(response_json, dict) and "data" in response_json:
@@ -85,5 +93,12 @@ def api_delete(path: str, with_auth: bool = True) -> Any:
     return _request("DELETE", BASE_URL, path, with_auth=with_auth)
 
 
-def ai_post(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = False) -> Any:
-    return _request("POST", AI_BASE_URL, path, data=data, with_auth=with_auth)
+def ai_post(path: str, data=None) -> Any:
+    return _request(
+        "POST",
+        AI_BASE_URL,
+        path,
+        data=data,
+        with_auth=False,   # ❗ JWT 안 씀
+        headers=get_headers(is_ai=True)
+    )
