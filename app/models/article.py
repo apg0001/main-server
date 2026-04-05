@@ -18,7 +18,9 @@ class Article(Base, TimestampMixin):
     publisher: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-
+    language: Mapped[str] = mapped_column(String(10), nullable=True)
+    
+    
     matches = relationship("ArticleMatch", back_populates="article", cascade="all, delete-orphan")
     summaries = relationship("Summary", back_populates="article", cascade="all, delete-orphan")
     translations = relationship("Translation", back_populates="article", cascade="all, delete-orphan")
