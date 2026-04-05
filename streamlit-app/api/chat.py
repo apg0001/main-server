@@ -1,145 +1,36 @@
-import os
-from typing import Any, Dict, Optional
-
-import requests
+from api.client import ai_chat_post
 import streamlit as st
-from dotenv import load_dotenv
-
-load_dotenv()
-
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
-AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
-TIMEOUT = 20
-
-CHATFLOW_API_KEY = os.getenv("CHATFLOW_API_KEY")
-SUMMARY_WORKFLOW_API_KEY = os.getenv("SUMMARY_WORKFLOW_API_KEY")
-SCORING_WORKFLOW_API_KEY = os.getenv("SCORING_WORKFLOW_API_KEY")
 
 
-class APIError(Exception):
-    pass
+def send_chat_message(message: str, article_id: int | None = None):
+    user = st.session_state.get("user") or {}
+    user_id = user.get("id")
 
+    if not user_id:
+        raise ValueError("로그인 사용자 정보가 없습니다.")
 
-def get_headers(with_auth: bool = True) -> Dict[str, str]:
-    headers = {
-        "Content-Type": "application/json",
+    inputs = {
+        "user_id": user_id,
     }
 
-    if with_auth:
-        token = st.session_state.get("access_token")
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+    if article_id is not None:
+        inputs["article_id"] = article_id
 
-    return headers
+    payload = {
+        "inputs": inputs,
+        "query": message,
+        "conversation_id": st.session_state.get("conversation_id", ""),
+        "response_mode": "blocking",
+        "user": str(user_id),
+    }
 
+    result = ai_chat_post("/chat-messages", payload)
 
-def unwrap_response(response_json: Dict[str, Any]) -> Any:
-    if isinstance(response_json, dict) and "data" in response_json:
-        return response_json["data"]
-    return response_json
+    if isinstance(result, dict):
+        conversation_id = result.get("conversation_id")
+        if conversation_id:
+            st.session_state["conversation_id"] = conversation_id
 
+        return result.get("answer", "응답이 없습니다.")
 
-def handle_response(response: requests.Response) -> Any:
-    try:
-        response.raise_for_status()
-    except requests.HTTPError as e:
-        try:
-            detail = response.json()
-        except Exception:
-            detail = response.text
-        raise APIError(f"HTTP {response.status_code}: {detail}") from e
-
-    if not response.text.strip():
-        return None
-
-    try:
-        result = response.json()
-    except Exception as e:
-        raise APIError(f"JSON 파싱 실패: {response.text}") from e
-
-    return unwrap_response(result)
-
-
-def _request(
-    method: str,
-    base_url: str,
-    path: str,
-    *,
-    data=None,
-    params=None,
-    with_auth=True,
-    headers: Optional[Dict[str, str]] = None,
-):
-    url = f"{base_url}{path}"
-
-    final_headers = get_headers(with_auth=with_auth)
-    if headers:
-        final_headers.update(headers)
-
-    response = requests.request(
-        method=method,
-        url=url,
-        headers=final_headers,
-        json=data,
-        params=params,
-        timeout=TIMEOUT,
-    )
-    return handle_response(response)
-
-
-def api_get(path: str, params: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
-    return _request("GET", BASE_URL, path, params=params, with_auth=with_auth)
-
-
-def api_post(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
-    return _request("POST", BASE_URL, path, data=data, with_auth=with_auth)
-
-
-def api_patch(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
-    return _request("PATCH", BASE_URL, path, data=data, with_auth=with_auth)
-
-
-def api_delete(path: str, with_auth: bool = True) -> Any:
-    return _request("DELETE", BASE_URL, path, with_auth=with_auth)
-
-
-def ai_chat_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    if not CHATFLOW_API_KEY:
-        raise APIError("CHATFLOW_API_KEY가 설정되지 않았습니다.")
-
-    return _request(
-        "POST",
-        AI_BASE_URL,
-        path,
-        data=data,
-        with_auth=False,
-        headers={"Authorization": f"Bearer {CHATFLOW_API_KEY}"},
-    )
-
-
-def ai_summary_workflow_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    if not SUMMARY_WORKFLOW_API_KEY:
-        raise APIError("SUMMARY_WORKFLOW_API_KEY가 설정되지 않았습니다.")
-
-    return _request(
-        "POST",
-        AI_BASE_URL,
-        path,
-        data=data,
-        with_auth=False,
-        headers={"Authorization": f"Bearer {SUMMARY_WORKFLOW_API_KEY}"},
-    )
-
-
-def ai_scoring_workflow_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    if not SCORING_WORKFLOW_API_KEY:
-        raise APIError("SCORING_WORKFLOW_API_KEY가 설정되지 않았습니다.")
-
-    return _request(
-        "POST",
-        AI_BASE_URL,
-        path,
-        data=data,
-        with_auth=False,
-        headers={"Authorization": f"Bearer {SCORING_WORKFLOW_API_KEY}"},
-    )
+    return "응답 형식을 해석하지 못했습니다."
