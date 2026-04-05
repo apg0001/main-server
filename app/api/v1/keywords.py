@@ -9,6 +9,7 @@ from app.schemas.keyword import (
     CreateKeywordRequest,
     UpdateKeywordStatusRequest,
 )
+from app.services.crawl_run_service import CrawlRunService
 from app.services.keyword_service import (
     batch_create_user_keywords,
     create_user_keyword,
@@ -32,6 +33,13 @@ async def create_keyword_api(
         current_user=current_user,
         keyword=payload.keyword,
         language=payload.language,
+    )
+    
+    crawl_service = CrawlRunService(db=db, transnews_client=TransNewsClient())
+    await crawl_service.create_crawl_run(
+        user_id=current_user.id,
+        keyword_ids=[data.id],
+        force=False,
     )
     return success_response(request, data=data.model_dump(), status_code=status.HTTP_201_CREATED)
 

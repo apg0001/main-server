@@ -1,7 +1,7 @@
 import streamlit as st
 
 from api.keywords import (
-    create_keyword,
+    create_keyword_and_crawl,
     delete_keyword,
     get_keywords,
     update_keyword_active,
@@ -81,8 +81,19 @@ def render_sidebar():
             st.sidebar.warning("키워드를 입력해주세요.")
         else:
             try:
-                create_keyword(new_keyword.strip())
+                result = create_keyword_and_crawl(new_keyword.strip())
+
+                created_keyword = result.get("keyword", {})
+                created_keyword_id = created_keyword.get("id")
+                created_keyword_name = created_keyword.get("keyword", new_keyword.strip())
+
+                if created_keyword_id:
+                    set_selected_keyword(created_keyword_id, created_keyword_name)
+                    reset_chat()
+
+                st.sidebar.success("키워드 등록 및 크롤링 요청 완료")
                 st.rerun()
+
             except Exception as e:
                 st.sidebar.error(f"추가 실패: {e}")
 

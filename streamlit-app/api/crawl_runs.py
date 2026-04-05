@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 
 from api.client import api_delete, api_get, api_patch, api_post
-from api.crawl_runs import create_crawl_run
 
 load_dotenv()
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "ko")
@@ -36,47 +35,12 @@ def create_keyword(keyword: str, language: str = DEFAULT_LANGUAGE):
     return api_post("/keywords", payload)
 
 
-def create_keyword_and_crawl(keyword: str, language: str = DEFAULT_LANGUAGE):
-    created = create_keyword(keyword=keyword, language=language)
-
-    keyword_id = created.get("id")
-    if not keyword_id:
-        raise ValueError(f"키워드 생성 응답에 id가 없습니다: {created}")
-
-    crawl_result = create_crawl_run(keyword_ids=[keyword_id], force=False)
-
-    return {
-        "keyword": created,
-        "crawl_run": crawl_result,
-    }
-
-
 def batch_create_keywords(keywords: list[str], language: str = DEFAULT_LANGUAGE):
     payload = {
         "keywords": keywords,
         "language": language,
     }
     return api_post("/keywords/batch", payload)
-
-
-def batch_create_keywords_and_crawl(keywords: list[str], language: str = DEFAULT_LANGUAGE):
-    created = batch_create_keywords(keywords=keywords, language=language)
-
-    items = created.get("items", [])
-    created_keyword_ids = [
-        item["id"]
-        for item in items
-        if item.get("status") == "CREATED" and item.get("id") is not None
-    ]
-
-    crawl_result = None
-    if created_keyword_ids:
-        crawl_result = create_crawl_run(keyword_ids=created_keyword_ids, force=False)
-
-    return {
-        "keywords": created,
-        "crawl_run": crawl_result,
-    }
 
 
 def update_keyword_active(keyword_id: int, is_active: bool):
