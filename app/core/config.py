@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from pydantic import Field
 
 class Settings(BaseSettings):
     app_name: str = "News Monitoring API"
@@ -14,11 +14,11 @@ class Settings(BaseSettings):
 
     # Chatflow
     dify_base_url: str
-    chatflow_api_key: str
+    chatflow_api_key: str = Field(..., alias="CHATFLOW_API_KEY")
 
     # Workflow
-    summary_workflow_api_key: str
-    scoring_workflow_api_key: str
+    summary_workflow_api_key: str = Field(..., alias="SUMMARY_WORKFLOW_API_KEY")
+    scoring_workflow_api_key: str = Field(..., alias="SCORING_WORKFLOW_API_KEY")
 
     # Knowledge
     knowledge_api_key: str
