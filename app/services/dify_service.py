@@ -7,7 +7,7 @@ from app.core.config import settings
 class DifyService:
     def __init__(self):
         self.base_url = settings.dify_base_url.rstrip("/")
-        self.api_key = settings.dify_api_key
+        self.api_key = settings.CHATFLOW_API_KEY
         self.timeout = settings.dify_request_timeout
 
     async def send_chat_message(

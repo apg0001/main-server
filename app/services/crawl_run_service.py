@@ -75,23 +75,24 @@ class CrawlRunService:
                     crawl_run_id=crawl_run.id,
                 )
 
-                try:
-                    summary_response = await self.transnews_client.summarize_news(article.url)
-                    print("SUMMARY RESPONSE =", summary_response)
+                #summary만드는 부분
+                # try:
+                #     summary_response = await self.transnews_client.summarize_news(article.url)
+                #     print("SUMMARY RESPONSE =", summary_response)
 
-                    if summary_response.get("status") == "SUCCESS":
-                        data = summary_response.get("data") or {}
-                        content = data.get("content")
-                        summary_text = data.get("summary")
+                #     if summary_response.get("status") == "SUCCESS":
+                #         data = summary_response.get("data") or {}
+                #         content = data.get("content")
+                #         summary_text = data.get("summary")
 
-                        if content:
-                            article.content = content
+                #         if content:
+                #             article.content = content
 
-                        if summary_text:
-                            await self._upsert_summary(article.id, summary_text)
-                except Exception as e:
-                    print("SUMMARY FAILED =", e)
-                    pass
+                #         if summary_text:
+                #             await self._upsert_summary(article.id, summary_text)
+                # except Exception as e:
+                #     print("SUMMARY FAILED =", e)
+                #     pass
 
                 article_count += 1
 
