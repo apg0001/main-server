@@ -1,19 +1,20 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
+
 class Settings(BaseSettings):
     app_name: str = "News Monitoring API"
     api_v1_prefix: str = "/api/v1"
     debug: bool = True
 
     refresh_token_expire_days: int = 14
-    database_url: str
-    secret_key: str
+    database_url: str = Field(..., alias="DATABASE_URL")
+    secret_key: str = Field(..., alias="SECRET_KEY")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
     # Chatflow
-    dify_base_url: str
+    dify_base_url: str = Field(..., alias="DIFY_BASE_URL")
     chatflow_api_key: str = Field(..., alias="CHATFLOW_API_KEY")
 
     # Workflow
@@ -21,18 +22,22 @@ class Settings(BaseSettings):
     scoring_workflow_api_key: str = Field(..., alias="SCORING_WORKFLOW_API_KEY")
 
     # Knowledge
-    knowledge_api_key: str
-    dify_dataset_id: str
-    dify_article_id_metadata_field_id: str
+    knowledge_api_key: str = Field(..., alias="KNOWLEDGE_API_KEY")
+    dify_dataset_id: str = Field(..., alias="DIFY_DATASET_ID")
+    dify_article_id_metadata_field_id: str = Field(..., alias="DIFY_ARTICLE_ID_METADATA_FIELD_ID")
 
     dify_request_timeout: int = 30
-    transnews_base_url: str
+    transnews_base_url: str = Field(..., alias="TRANSNEWS_BASE_URL")
     transnews_request_timeout: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
+        case_sensitive=False,
     )
 
 
 settings = Settings()
+
+print("BACKEND CHATFLOW_API_KEY =", settings.chatflow_api_key)
+print("BACKEND DIFY_BASE_URL =", settings.dify_base_url)

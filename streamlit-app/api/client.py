@@ -3,9 +3,25 @@ from typing import Any, Dict, Optional
 
 import requests
 import streamlit as st
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import requests
+import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parents[1]
+ENV_PATH = BASE_DIR / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
+
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
+AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
+TIMEOUT = 20
+
+CHATFLOW_API_KEY = os.getenv("CHATFLOW_API_KEY")
+SUMMARY_WORKFLOW_API_KEY = os.getenv("SUMMARY_WORKFLOW_API_KEY")
+SCORING_WORKFLOW_API_KEY = os.getenv("SCORING_WORKFLOW_API_KEY")
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
 AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
