@@ -124,6 +124,7 @@ class CrawlRunService:
 
     async def _upsert_article(self, item: dict[str, Any]) -> Article | None:
         from sqlalchemy import select
+        from email.utils import parsedate_to_datetime
 
         print("RAW ITEM IN UPSERT =", item)
 
@@ -148,6 +149,7 @@ class CrawlRunService:
 
         title = item.get("title") or "제목 없음"
         publisher = item.get("publisher") or item.get("source")
+        language = item.get("language") or "ko"
 
         result = await self.db.execute(select(Article).where(Article.url == url))
         article = result.scalar_one_or_none()
@@ -157,6 +159,7 @@ class CrawlRunService:
             article.title = title
             article.publisher = publisher
             article.source_type = article.source_type or "TRANSNEWS"
+            article.language = article.language or language
             if published_at is not None:
                 article.published_at = published_at
             return article
@@ -169,7 +172,7 @@ class CrawlRunService:
             publisher=publisher,
             published_at=published_at,
             content=item.get("content") or "",
-            language=item.get("language"),
+            language=language,
         )
         self.db.add(article)
         await self.db.flush()
