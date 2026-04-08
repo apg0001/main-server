@@ -23,7 +23,7 @@ router = APIRouter(prefix="/ai", tags=["AI"])
 
 def get_dify_service() -> DifyService:
     return DifyService(
-        base_url=app.core.config.settings.AI_BASE_URL,
+        base_url=app.core.config.settings.DIFY_BASE_URL,
         chatflow_api_key=app.core.config.settings.CHATFLOW_API_KEY,
         summary_workflow_api_key=app.core.config.settings.SUMMARY_WORKFLOW_API_KEY,
         scoring_workflow_api_key=app.core.config.settings.SCORING_WORKFLOW_API_KEY,
