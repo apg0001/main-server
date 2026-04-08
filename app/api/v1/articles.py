@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
-from app.repositories.article_repository import ArticleRepository
 import app.schemas.articles
 from app.services.article_service import ArticleService
 
@@ -48,8 +47,25 @@ async def get_articles(
         )
 
         service = ArticleService(db)
-        result = await service.get_article_list(user_id=current_user.id, query=query)
-        return success_response(request=request, data=result.model_dump())
+        items, total = await service.get_article_list(
+            user_id=current_user.id,
+            query=query,
+        )
+
+        response = app.schemas.articles.ArticleListResponse(
+            items=[
+                app.schemas.articles.ArticleListItem(**item)
+                for item in items
+            ],
+            page_info=app.schemas.articles.PageInfo(
+                page=query.page,
+                size=query.size,
+                total=total,
+                has_next=(query.page * query.size) < total,
+            ),
+        )
+
+        return success_response(request=request, data=response.model_dump())
 
     except ValueError as e:
         raise HTTPException(
