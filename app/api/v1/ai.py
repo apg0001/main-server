@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,20 +17,53 @@ from app.services.article_service import ArticleService
 from app.services.dify_service import DifyService
 from app.services.importance_service import ImportanceService
 from app.services.summary_service import SummaryService
-import app.core.config
 
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
 
 def get_dify_service() -> DifyService:
-    return DifyService(
-        base_url=app.core.config.settings.DIFY_BASE_URL,
-        chatflow_api_key=app.core.config.settings.CHATFLOW_API_KEY,
-        summary_workflow_api_key=app.core.config.settings.SUMMARY_WORKFLOW_API_KEY,
-        scoring_workflow_api_key=app.core.config.settings.SCORING_WORKFLOW_API_KEY,
-        timeout=30.0,
+    return DifyService.from_settings()
+
+
+def _extract_summary_text(result: dict) -> str | None:
+    """
+    DifyService의 래핑 응답과 raw 응답 둘 다 방어적으로 처리
+    """
+    data = result.get("data") or {}
+    if data.get("summary_text"):
+        return data.get("summary_text")
+
+    raw = result.get("raw") or {}
+    raw_data = raw.get("data") or {}
+    outputs = raw_data.get("outputs") or {}
+
+    return (
+        outputs.get("summary")
+        or outputs.get("summary_text")
+        or outputs.get("result")
+        or outputs.get("text")
     )
+
+
+def _extract_importance_items(result: dict) -> list[dict]:
+    """
+    DifyService의 래핑 응답과 raw 응답 둘 다 방어적으로 처리
+    """
+    data = result.get("data") or {}
+    items = data.get("items")
+    if isinstance(items, list) and items:
+        return items
+
+    raw = result.get("raw") or {}
+    raw_data = raw.get("data") or {}
+    outputs = raw_data.get("outputs") or {}
+
+    raw_items = outputs.get("items")
+    if isinstance(raw_items, list):
+        return raw_items
+
+    return []
 
 
 @router.post("/chat", response_model=AIChatResponse)
@@ -55,16 +90,19 @@ async def chat(
             article_id=request.article_id,
             conversation_id=request.conversation_id or "",
         )
+
+        result_data = result.get("data") or {}
+
+        return AIChatResponse(
+            answer=result_data.get("answer", "응답이 없습니다."),
+            conversation_id=result_data.get("conversation_id"),
+        )
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"채팅 호출 실패: {e}",
         )
-
-    return AIChatResponse(
-        answer=result.get("answer", "응답이 없습니다."),
-        conversation_id=result.get("conversation_id"),
-    )
 
 
 @router.post("/summary", response_model=SummaryResponse)
@@ -85,22 +123,24 @@ async def summarize_article(
         )
 
     try:
-        result = await dify_service.run_summary_workflow(
-            user_id=current_user.id,
-            article_id=article.id,
-            title=article.title,
-            content=article.content,
-            publisher=article.publisher,
-            published_at=article.published_at.isoformat() if article.published_at else None,
+        articles_payload = json.dumps(
+            [
+                {
+                    "article_id": article.id,
+                    "title": article.title or "",
+                    "content": article.content or "",
+                }
+            ],
+            ensure_ascii=False,
         )
 
-        outputs = result.get("outputs") or {}
-        summary_text = (
-            outputs.get("summary")
-            or outputs.get("summary_text")
-            or outputs.get("result")
-            or outputs.get("text")
+        result = await dify_service.run_summary_workflow(
+            user_id=current_user.id,
+            message="이 기사를 한국어로 핵심만 간결하게 요약해줘. 반드시 JSON 형식으로 반환해줘.",
+            articles=articles_payload,
         )
+
+        summary_text = _extract_summary_text(result)
 
         if not summary_text:
             raise ValueError("요약 결과를 찾을 수 없습니다.")
@@ -111,6 +151,7 @@ async def summarize_article(
             language="ko",
             model_name="dify-summary-workflow",
         )
+
         await db.commit()
         await db.refresh(saved)
 
@@ -149,28 +190,40 @@ async def score_articles_by_keyword(
             results=[],
         )
 
-    response_items = []
+    response_items: list[ImportanceItemResponse] = []
 
     try:
         for article in articles:
-            result = await dify_service.run_importance_workflow(
-                user_id=current_user.id,
-                article_id=article.id,
-                title=article.title,
-                content=article.content,
-                publisher=article.publisher,
-                published_at=article.published_at.isoformat() if article.published_at else None,
+            articles_payload = json.dumps(
+                [
+                    {
+                        "article_id": article.id,
+                        "title": article.title or "",
+                        "content": article.content or "",
+                    }
+                ],
+                ensure_ascii=False,
             )
 
-            outputs = result.get("outputs") or {}
-            score = outputs.get("score")
-            reason = outputs.get("reason")
+            result = await dify_service.run_importance_workflow(
+                user_id=current_user.id,
+                articles=articles_payload,
+            )
+
+            items = _extract_importance_items(result)
+            if not items:
+                continue
+
+            item = items[0]
+            score = item.get("score")
+            reason = item.get("reason")
+            article_id = item.get("article_id", article.id)
 
             if score is None:
                 continue
 
             saved = await importance_service.save_score(
-                article_id=article.id,
+                article_id=int(article_id),
                 user_id=current_user.id,
                 score=float(score),
                 reason=reason,
