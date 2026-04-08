@@ -23,6 +23,7 @@ def render_chat_box():
     if prompt:
         selected_article_id = st.session_state.get("selected_article_id")
         conversation_id = st.session_state.get("chat_conversation_id", "")
+        chat_id = st.session_state.get("selected_chat_id")
 
         st.session_state["chat_messages"].append({
             "role": "user",
@@ -32,7 +33,11 @@ def render_chat_box():
         with st.chat_message("assistant"):
             with st.spinner("응답 생성 중..."):
                 try:
+                    if not chat_id:
+                        raise ValueError("선택된 채팅방이 없습니다. 먼저 채팅방을 선택하거나 생성하세요.")
+
                     result = send_chat_message(
+                        chat_id=chat_id,
                         message=prompt,
                         article_id=selected_article_id,
                         conversation_id=conversation_id,
@@ -62,7 +67,7 @@ def extract_chat_result(result):
       "data": {
         "conversation_id": "conv_001",
         "answer": "...",
-        "total_tokens": 570
+        "created_at": 1234567890
       },
       "error": null,
       "meta": { "request_id": "..." }

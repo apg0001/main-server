@@ -11,9 +11,6 @@ class DifyUploadError(Exception):
     pass
 
 
-# ----------------------------
-# 1) Chatflow / Workflow 호출용
-# ----------------------------
 class DifyService:
     def __init__(
         self,
@@ -57,13 +54,16 @@ class DifyService:
         user_id: int,
         message: str,
         conversation_id: str = "",
-        article_id: int | None = None,
+        article_ids: list[int] | None = None,
+        context_type: str = "",
+        chat_id: int | None = None,
     ) -> dict:
         inputs = {
             "user_id": user_id,
+            "article_ids": article_ids or [],
+            "context_type": context_type,
+            "chat_id": chat_id,
         }
-        if article_id is not None:
-            inputs["article_id"] = article_id
 
         payload = {
             "inputs": inputs,
@@ -74,22 +74,16 @@ class DifyService:
         }
 
         data = await self._post("/chat-messages", self.chatflow_api_key, payload)
-        print("\n=== 🔥 DIFY IMPORTANCE RAW RESPONSE ===")
+
+        print("\n=== 🔥 DIFY CHAT RAW RESPONSE ===")
         print(data)
-        print("=====================================\n")
-        
-        result_data = data.get("data") or {}
-        outputs = result_data.get("outputs") or {}
+        print("================================\n")
 
         return {
-            "success": data.get("success", True),
-            "data": {
-                "workflow_run_id": result_data.get("workflow_run_id"),
-                "task_id": result_data.get("task_id"),
-                "items": outputs.get("items", []),  # 🔥 여기 핵심
-            },
-            "error": data.get("error"),
-            "meta": data.get("meta"),
+            "answer": data.get("answer", ""),
+            "conversation_id": data.get("conversation_id", ""),
+            "created_at": data.get("created_at"),
+            "message_id": data.get("message_id"),
             "raw": data,
         }
 
@@ -111,10 +105,10 @@ class DifyService:
         }
 
         data = await self._post("/workflows/run", self.summary_workflow_api_key, payload)
-        print("\n=== 🔥 DIFY IMPORTANCE RAW RESPONSE ===")
+        print("\n=== 🔥 DIFY SUMMARY RAW RESPONSE ===")
         print(data)
-        print("=====================================\n")
-        
+        print("===================================\n")
+
         result_data = data.get("data") or {}
         outputs = result_data.get("outputs") or {}
 
@@ -123,7 +117,12 @@ class DifyService:
             "data": {
                 "workflow_run_id": result_data.get("workflow_run_id"),
                 "task_id": result_data.get("task_id"),
-                "items": outputs.get("items", []),  # 🔥 여기 핵심
+                "summary_text": (
+                    outputs.get("summary")
+                    or outputs.get("summary_text")
+                    or outputs.get("result")
+                    or outputs.get("text")
+                ),
             },
             "error": data.get("error"),
             "meta": data.get("meta"),
@@ -146,11 +145,10 @@ class DifyService:
         }
 
         data = await self._post("/workflows/run", self.scoring_workflow_api_key, payload)
-        
+
         print("\n=== 🔥 DIFY IMPORTANCE RAW RESPONSE ===")
         print(data)
-        print("=====================================\n")
-        
+        print("======================================\n")
 
         result_data = data.get("data") or {}
         outputs = result_data.get("outputs") or {}
@@ -160,7 +158,7 @@ class DifyService:
             "data": {
                 "workflow_run_id": result_data.get("workflow_run_id"),
                 "task_id": result_data.get("task_id"),
-                "items": outputs.get("items", []),  # 🔥 여기 핵심
+                "items": outputs.get("items", []),
             },
             "error": data.get("error"),
             "meta": data.get("meta"),
@@ -178,9 +176,6 @@ class DifyService:
         )
 
 
-# ----------------------------
-# 2) Knowledge 적재용
-# ----------------------------
 class DifyArticleUploadService:
     def __init__(self, knowledge_client: DifyKnowledgeClient | None = None) -> None:
         self.knowledge_client = knowledge_client or DifyKnowledgeClient()

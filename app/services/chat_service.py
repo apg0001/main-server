@@ -21,7 +21,7 @@ class ChatService:
         dify_service: DifyService | None = None,
     ):
         self.repository = repository
-        self.dify_service = dify_service or DifyService()
+        self.dify_service = dify_service or DifyService.from_settings()
 
     async def get_chat_list(
         self,
@@ -75,10 +75,10 @@ class ChatService:
     async def send_message(
         self,
         user_id: int,
-        conversation_id: int,
+        chat_id: int,
         payload: ChatSendMessageRequest,
     ) -> ChatSendMessageResponse:
-        chat = await self.repository.get_chat_by_id(conversation_id)
+        chat = await self.repository.get_chat_by_id(chat_id)
 
         if not chat:
             raise build_error(ErrorCode.NOT_FOUND, "chat not found")
@@ -89,19 +89,14 @@ class ChatService:
                 "You do not have permission to access this chat",
             )
 
-        # 기사 목록이 있으면 Dify inputs로 전달
-        inputs = {
-            "conversation_id": chat.id,
-            "context_type": chat.context_type,
-            "article_ids": payload.article_ids or [],
-        }
-
         try:
             dify_result = await self.dify_service.send_chat_message(
-                query=payload.message,
-                user=str(user_id),
-                conversation_id=chat.external_conversation_id,
-                inputs=inputs,
+                user_id=user_id,
+                message=payload.message,
+                conversation_id=payload.conversation_id or chat.external_conversation_id or "",
+                article_ids=payload.article_ids or [],
+                context_type=str(chat.context_type) if chat.context_type is not None else "",
+                chat_id=chat.id,
             )
         except RuntimeError:
             raise build_error(
@@ -109,7 +104,7 @@ class ChatService:
                 "LLM service temporarily unavailable",
             )
 
-        conversation_id = dify_result.get("conversation_id")
+        new_conversation_id = dify_result.get("conversation_id")
         answer = dify_result.get("answer")
         created_at = dify_result.get("created_at")
 
@@ -121,13 +116,13 @@ class ChatService:
 
         await self.repository.update_chat_conversation_and_last_message(
             chat=chat,
-            external_conversation_id=conversation_id,
+            external_conversation_id=new_conversation_id,
             last_message=answer,
             last_message_at=created_at,
         )
 
         return ChatSendMessageResponse(
             answer=answer,
-            conversation_id=conversation_id,
+            conversation_id=new_conversation_id,
             created_at=created_at,
         )

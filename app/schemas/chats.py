@@ -83,6 +83,7 @@ class ChatDetailResponse(BaseModel):
 
 class ChatSendMessageRequest(BaseModel):
     message: str = Field(..., min_length=1)
+    conversation_id: str | None = None
     article_ids: Optional[List[int]] = None
 
 

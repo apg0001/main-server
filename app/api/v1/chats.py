@@ -113,10 +113,10 @@ async def get_chat_detail(
         raise
 
 
-@router.post("/{conversation_id}/messages")
+@router.post("/{chat_id}/messages")
 async def send_chat_message(
     request: Request,
-    conversation_id: int,
+    chat_id: int,
     payload: ChatSendMessageRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
@@ -126,7 +126,7 @@ async def send_chat_message(
     try:
         result = await service.send_message(
             user_id=current_user.id,
-            conversation_id=conversation_id,
+            chat_id=chat_id,
             payload=payload,
         )
         await db.commit()
