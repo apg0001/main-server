@@ -16,7 +16,6 @@ from app.services.dify_service import DifyService
 from app.services.importance_service import ImportanceService
 from app.services.summary_service import SummaryService
 import app.core.config
-from app.api.v1.auth import get_current_user
 
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -36,7 +35,7 @@ def get_dify_service() -> DifyService:
 async def chat(
     request: AIChatRequest,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_user_or_dev_user),
 ):
     dify_service = get_dify_service()
     article_service = ArticleService(db)
@@ -72,7 +71,7 @@ async def chat(
 async def summarize_article(
     request: SummaryRequest,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_user_or_dev_user),
 ):
     dify_service = get_dify_service()
     article_service = ArticleService(db)
@@ -136,7 +135,7 @@ async def summarize_article(
 async def score_articles_by_keyword(
     request: ImportanceBatchRequest,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_user_or_dev_user),
 ):
     dify_service = get_dify_service()
     article_service = ArticleService(db)
