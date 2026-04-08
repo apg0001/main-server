@@ -1,10 +1,12 @@
 import streamlit as st
-
 from api.chat import send_chat_message
 
 
 def render_chat_box():
     st.subheader("AI 채팅")
+
+    if "chat_messages" not in st.session_state:
+        st.session_state["chat_messages"] = []
 
     if not st.session_state["chat_messages"]:
         st.info("질문을 입력하면 AI 응답이 표시됩니다.")
@@ -16,19 +18,26 @@ def render_chat_box():
     prompt = st.chat_input("예: 하이닉스 관련 기사 흐름 요약해줘")
 
     if prompt:
-        st.session_state["chat_messages"].append({"role": "user", "content": prompt})
+        selected_article_id = st.session_state.get("selected_article_id")
+
+        st.session_state["chat_messages"].append({
+            "role": "user",
+            "content": prompt
+        })
 
         with st.chat_message("assistant"):
             with st.spinner("응답 생성 중..."):
                 try:
-                    answer = send_chat_message(message=prompt)
-                except Exception as e:
-                    answer = (
-                        f"채팅 요청 실패: {e}\n\n"
-                        "AI 서버 URL(AI_BASE_URL)이나 /chat-messages 요청 스펙을 확인해줘."
+                    answer = send_chat_message(
+                        message=prompt,
+                        article_id=selected_article_id,
                     )
+                except Exception as e:
+                    answer = f"채팅 요청 실패: {e}"
+
                 st.write(answer)
 
-        st.session_state["chat_messages"].append(
-            {"role": "assistant", "content": answer}
-        )
+        st.session_state["chat_messages"].append({
+            "role": "assistant",
+            "content": answer
+        })

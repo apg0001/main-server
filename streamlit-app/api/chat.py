@@ -1,30 +1,15 @@
-from api.client import ai_chat_post
+from api.client import api_post
 import streamlit as st
 
 
 def send_chat_message(message: str, article_id: int | None = None):
-    user = st.session_state.get("user") or {}
-    user_id = user.get("id")
-
-    if not user_id:
-        raise ValueError("로그인 사용자 정보가 없습니다.")
-
-    inputs = {
-        "user_id": user_id,
-    }
-
-    if article_id is not None:
-        inputs["article_id"] = article_id
-
     payload = {
-        "inputs": inputs,
-        "query": message,
+        "message": message,
+        "article_id": article_id,
         "conversation_id": st.session_state.get("conversation_id", ""),
-        "response_mode": "blocking",
-        "user": str(user_id),
     }
 
-    result = ai_chat_post("/chat-messages", payload)
+    result = api_post("/ai/chat", payload)
 
     if isinstance(result, dict):
         conversation_id = result.get("conversation_id")

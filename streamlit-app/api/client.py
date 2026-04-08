@@ -12,16 +12,11 @@ import streamlit as st
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-ENV_PATH = BASE_DIR / ".env"
+ENV_PATH = Path(__file__).resolve().parents[2] / "main-server" / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
-AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
 TIMEOUT = 20
-
-CHATFLOW_API_KEY = os.getenv("CHATFLOW_API_KEY")
-SUMMARY_WORKFLOW_API_KEY = os.getenv("SUMMARY_WORKFLOW_API_KEY")
-SCORING_WORKFLOW_API_KEY = os.getenv("SCORING_WORKFLOW_API_KEY")
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
 AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
@@ -30,7 +25,6 @@ TIMEOUT = 20
 CHATFLOW_API_KEY = os.getenv("CHATFLOW_API_KEY")
 SUMMARY_WORKFLOW_API_KEY = os.getenv("SUMMARY_WORKFLOW_API_KEY")
 SCORING_WORKFLOW_API_KEY = os.getenv("SCORING_WORKFLOW_API_KEY")
-
 
 class APIError(Exception):
     pass
@@ -118,44 +112,3 @@ def api_patch(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool 
 def api_delete(path: str, with_auth: bool = True) -> Any:
     return _request("DELETE", BASE_URL, path, with_auth=with_auth)
 
-
-def ai_chat_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    if not CHATFLOW_API_KEY:
-        raise APIError("CHATFLOW_API_KEY가 설정되지 않았습니다.")
-
-    return _request(
-        "POST",
-        AI_BASE_URL,
-        path,
-        data=data,
-        with_auth=False,
-        headers={"Authorization": f"Bearer {CHATFLOW_API_KEY}"},
-    )
-
-
-def ai_summary_workflow_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    if not SUMMARY_WORKFLOW_API_KEY:
-        raise APIError("SUMMARY_WORKFLOW_API_KEY가 설정되지 않았습니다.")
-
-    return _request(
-        "POST",
-        AI_BASE_URL,
-        path,
-        data=data,
-        with_auth=False,
-        headers={"Authorization": f"Bearer {SUMMARY_WORKFLOW_API_KEY}"},
-    )
-
-
-def ai_scoring_workflow_post(path: str, data: Optional[Dict[str, Any]] = None) -> Any:
-    if not SCORING_WORKFLOW_API_KEY:
-        raise APIError("SCORING_WORKFLOW_API_KEY가 설정되지 않았습니다.")
-
-    return _request(
-        "POST",
-        AI_BASE_URL,
-        path,
-        data=data,
-        with_auth=False,
-        headers={"Authorization": f"Bearer {SCORING_WORKFLOW_API_KEY}"},
-    )
