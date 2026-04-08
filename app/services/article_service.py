@@ -3,13 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.article import Article
 from app.models.article_match import ArticleMatch
-from app.repositories import article_repository
+from app.repositories.article_repository import ArticleRepository
 
 
 class ArticleService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.article_repository = article_repository
+        self.article_repository = ArticleRepository(db)
 
     async def get_article_by_id(self, article_id: int) -> Article | None:
         result = await self.db.execute(
