@@ -26,7 +26,7 @@ def get_dify_service() -> DifyService:
         base_url=app.core.config.settings.AI_BASE_URL,
         chatflow_api_key=app.core.config.settings.CHATFLOW_API_KEY,
         summary_workflow_api_key=app.core.config.settings.SUMMARY_WORKFLOW_API_KEY,
-        importance_workflow_api_key=app.core.config.settings.SCORING_WORKFLOW_API_KEY,
+        scoring_workflow_api_key=app.core.config.settings.SCORING_WORKFLOW_API_KEY,
         timeout=30.0,
     )
 

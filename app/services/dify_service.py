@@ -20,13 +20,13 @@ class DifyService:
         base_url: str,
         chatflow_api_key: str,
         summary_workflow_api_key: str,
-        importance_workflow_api_key: str,
+        scoring_workflow_api_key: str,
         timeout: float = 30.0,
     ):
         self.base_url = base_url.rstrip("/")
         self.chatflow_api_key = chatflow_api_key
         self.summary_workflow_api_key = summary_workflow_api_key
-        self.importance_workflow_api_key = importance_workflow_api_key
+        self.scoring_workflow_api_key = scoring_workflow_api_key
         self.timeout = timeout
 
     async def _post(self, path: str, api_key: str, payload: dict) -> dict:
@@ -138,7 +138,7 @@ class DifyService:
             "user": str(user_id),
         }
 
-        data = await self._post("/workflows/run", self.importance_workflow_api_key, payload)
+        data = await self._post("/workflows/run", self.scoring_workflow_api_key, payload)
 
         result_data = data.get("data") or {}
 
@@ -160,7 +160,7 @@ class DifyService:
             base_url=settings.dify_base_url,
             chatflow_api_key=settings.chatflow_api_key,
             summary_workflow_api_key=settings.summary_workflow_api_key,
-            importance_workflow_api_key=settings.importance_workflow_api_key,
+            scoring_workflow_api_key=settings.scoring_workflow_api_key,
             timeout=settings.dify_request_timeout,
         )
 
