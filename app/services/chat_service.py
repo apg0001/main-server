@@ -130,7 +130,7 @@ class ChatService:
         self,
         user_id: int,
         payload,
-    ):
+    ) -> ChatDetailResponse:
         title = (payload.title or "").strip()
 
         if not title:
@@ -143,11 +143,11 @@ class ChatService:
         )
 
         return ChatDetailResponse(
-            id=chat.id,
-            title=chat.title,
-            context_type=chat.context_type,
-            external_conversation_id=chat.external_conversation_id,
-            last_message=chat.last_message,
-            last_message_at=chat.last_message_at,
-            created_at=chat.created_at,
+            id=chat["id"],
+            title=chat["title"],
+            context_type=chat.get("context_type"),
+            external_conversation_id=chat.get("external_conversation_id"),
+            last_message=chat.get("last_message"),
+            last_message_at=chat.get("last_message_at"),
+            created_at=chat["created_at"],
         )
