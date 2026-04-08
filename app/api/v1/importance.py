@@ -42,7 +42,7 @@ async def list_importance(
 
     service = ImportanceService(db)
     result = await service.get_importance_list(user_id=current_user.id, query=query)
-    return success_response(data=result.model_dump())
+    return success_response(data=result)
 
 
 @router.post("/run")
@@ -57,4 +57,4 @@ async def run_importance(
         article_ids=payload.article_ids,
     )
     await db.commit()
-    return success_response(data=result.model_dump())
+    return success_response(data=result)

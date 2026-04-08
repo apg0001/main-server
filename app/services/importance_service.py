@@ -1,13 +1,17 @@
 from datetime import datetime, timezone
-from sqlalchemy import update, select
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.importance_score import ImportanceScore
+from app.repositories.importance_repository import ImportanceRepository
+from app.repositories.article_repository import ArticleRepository
 
-#중요도 저장 로직
+
 class ImportanceService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.importance_repository = ImportanceRepository(db)
+        self.article_repository = ArticleRepository(db)
 
     async def save_score(
         self,
@@ -43,3 +47,45 @@ class ImportanceService:
         self.db.add(row)
         await self.db.flush()
         return row
+
+    async def get_importance_list(self, user_id: int, query):
+        return await self.importance_repository.get_importance_list(
+            user_id=user_id,
+            query=query,
+        )
+
+    async def run_importance_scoring(self, user_id: int, article_ids: list[int]):
+        # 1. 기사 접근 가능 여부 검증
+        await self.article_repository.validate_articles_exist_and_accessible(
+            user_id=user_id,
+            article_ids=article_ids,
+        )
+
+        # 2. 중요도 계산 대상 기사 가져오기
+        articles = await self.article_repository.get_articles_for_importance_scoring(
+            user_id=user_id,
+            article_ids=article_ids,
+        )
+
+        # 3. 임시로 점수 저장
+        # 아직 Dify 연결 전이면 더미 점수로라도 저장해서 흐름부터 살리기
+        saved_items = []
+        for article in articles:
+            row = await self.save_score(
+                article_id=article["article_id"],
+                user_id=user_id,
+                score=0.5,
+                reason="temporary default score",
+            )
+            saved_items.append(
+                {
+                    "article_id": row.article_id,
+                    "score": row.score,
+                    "status": row.status,
+                }
+            )
+
+        return {
+            "items": saved_items,
+            "count": len(saved_items),
+        }
