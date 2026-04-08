@@ -1,5 +1,4 @@
 import os
-
 from dotenv import load_dotenv
 
 from api.client import api_delete, api_get, api_patch, api_post
@@ -21,13 +20,7 @@ def get_keywords(page=1, size=100, is_active=None, language=None, q=None):
     if q:
         params["q"] = q
 
-    try:
-        result = api_get("/keywords", params=params)
-    except Exception as e:
-        error_text = str(e)
-        if "404" in error_text or "Not Found" in error_text:
-            return [], {"page": page, "size": size, "total": 0}
-        raise
+    result = api_get("/keywords", params=params)
 
     items = result.get("items", []) if isinstance(result, dict) else []
     page_info = result.get("page_info") if isinstance(result, dict) else None
@@ -64,28 +57,6 @@ def batch_create_keywords(keywords: list[str], language: str = DEFAULT_LANGUAGE)
     }
     return api_post("/keywords/batch", payload)
 
-
-def create_keyword_and_crawl(keyword: str, language: str = DEFAULT_LANGUAGE):
-    created = create_keyword(keyword=keyword, language=language)
-
-    keyword_id = created.get("id")
-    if not keyword_id:
-        raise ValueError(f"키워드 생성 응답에 id가 없습니다: {created}")
-
-    try:
-        crawl_result = create_crawl_run(keyword_ids=[keyword_id], force=False)
-    except Exception as e:
-        return {
-            "keyword": created,
-            "crawl_run": None,
-            "crawl_error": str(e),
-        }
-
-    return {
-        "keyword": created,
-        "crawl_run": crawl_result,
-        "crawl_error": None,
-    }
 
 def update_keyword_active(keyword_id: int, is_active: bool):
     payload = {"is_active": is_active}
