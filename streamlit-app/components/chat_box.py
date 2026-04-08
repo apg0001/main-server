@@ -8,6 +8,9 @@ def render_chat_box():
     if "chat_messages" not in st.session_state:
         st.session_state["chat_messages"] = []
 
+    if "chat_conversation_id" not in st.session_state:
+        st.session_state["chat_conversation_id"] = ""
+
     if not st.session_state["chat_messages"]:
         st.info("질문을 입력하면 AI 응답이 표시됩니다.")
 
@@ -19,6 +22,7 @@ def render_chat_box():
 
     if prompt:
         selected_article_id = st.session_state.get("selected_article_id")
+        conversation_id = st.session_state.get("chat_conversation_id", "")
 
         st.session_state["chat_messages"].append({
             "role": "user",
@@ -28,10 +32,17 @@ def render_chat_box():
         with st.chat_message("assistant"):
             with st.spinner("응답 생성 중..."):
                 try:
-                    answer = send_chat_message(
+                    result = send_chat_message(
                         message=prompt,
                         article_id=selected_article_id,
+                        conversation_id=conversation_id,
                     )
+
+                    answer, new_conversation_id = extract_chat_result(result)
+
+                    if new_conversation_id:
+                        st.session_state["chat_conversation_id"] = new_conversation_id
+
                 except Exception as e:
                     answer = f"채팅 요청 실패: {e}"
 
@@ -41,3 +52,43 @@ def render_chat_box():
             "role": "assistant",
             "content": answer
         })
+
+
+def extract_chat_result(result):
+    """
+    채팅 API 응답 구조:
+    {
+      "success": true,
+      "data": {
+        "conversation_id": "conv_001",
+        "answer": "...",
+        "total_tokens": 570
+      },
+      "error": null,
+      "meta": { "request_id": "..." }
+    }
+    """
+    if not isinstance(result, dict):
+        return "채팅 결과를 해석하지 못했습니다.", ""
+
+    success = result.get("success", False)
+    if not success:
+        error = result.get("error", {})
+        if isinstance(error, dict):
+            return error.get("message", "채팅 요청에 실패했습니다."), ""
+        return "채팅 요청에 실패했습니다.", ""
+
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return "채팅 응답 데이터가 없습니다.", ""
+
+    answer = data.get("answer", "")
+    conversation_id = data.get("conversation_id", "")
+
+    if not isinstance(answer, str) or not answer.strip():
+        answer = "응답 내용이 비어 있습니다."
+
+    if not isinstance(conversation_id, str):
+        conversation_id = ""
+
+    return answer, conversation_id

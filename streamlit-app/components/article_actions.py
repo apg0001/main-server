@@ -30,8 +30,8 @@ def render_article_action_buttons():
                 with st.spinner("기사 요약 생성 중..."):
                     result = request_article_summary(selected_article_id)
 
-                summary = extract_summary_text(result)
-                st.session_state["article_summary_result"] = summary
+                summary_text = extract_summary_text(result)
+                st.session_state["article_summary_result"] = summary_text
                 st.success("기사 요약이 완료되었습니다.")
             except Exception as e:
                 st.error(f"요약 요청 실패: {e}")
@@ -46,54 +46,107 @@ def render_article_action_buttons():
                 with st.spinner("전체 기사 중요도 계산 중..."):
                     result = request_articles_scoring(article_ids)
 
-                scoring_map = extract_scoring_result(result)
-                st.session_state["article_scoring_result"] = scoring_map
+                scoring_items = extract_scoring_result(result)
+                st.session_state["article_scoring_result"] = scoring_items
                 st.success("전체 기사 중요도 계산이 완료되었습니다.")
             except Exception as e:
                 st.error(f"중요도 계산 실패: {e}")
 
-    if st.session_state.get("article_summary_result"):
+    summary_result = st.session_state.get("article_summary_result")
+    if summary_result:
         st.markdown("### 요약 결과")
-        st.write(st.session_state["article_summary_result"])
+        st.write(summary_result)
 
     scoring_result = st.session_state.get("article_scoring_result")
     if scoring_result:
         st.markdown("### 중요도 결과")
-        st.write(scoring_result)
+
+        if isinstance(scoring_result, list):
+            sorted_items = sorted(
+                scoring_result,
+                key=lambda x: x.get("score", 0),
+                reverse=True
+            )
+
+            for item in sorted_items:
+                article_id = item.get("article_id")
+                score = item.get("score")
+                reason = item.get("reason", "사유 없음")
+
+                st.write(f"- 기사 ID: {article_id}, 점수: {score}")
+                st.caption(f"사유: {reason}")
+        else:
+            st.write(scoring_result)
 
 
 def extract_summary_text(result):
+    """
+    요약 API 응답 구조:
+    {
+      "success": true,
+      "data": {
+        "workflow_run_id": "...",
+        "task_id": "...",
+        "summary_text": "..."
+      },
+      "error": null,
+      "meta": {...}
+    }
+    """
     if not isinstance(result, dict):
         return "요약 결과를 해석하지 못했습니다."
 
-    data = result.get("data", result)
+    success = result.get("success", False)
+    if not success:
+        error = result.get("error", {})
+        if isinstance(error, dict):
+            return error.get("message", "요약 요청에 실패했습니다.")
+        return "요약 요청에 실패했습니다."
 
-    if isinstance(data, dict):
-        outputs = data.get("outputs", {})
-        if isinstance(outputs, dict):
-            return (
-                outputs.get("summary")
-                or outputs.get("result")
-                or outputs.get("text")
-                or str(outputs)
-            )
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return "요약 결과 데이터가 없습니다."
 
-    return str(data)
+    summary_text = data.get("summary_text")
+    if isinstance(summary_text, str) and summary_text.strip():
+        return summary_text
+
+    return "요약문이 비어 있습니다."
 
 
 def extract_scoring_result(result):
+    """
+    중요도 API 응답 구조:
+    {
+      "success": true,
+      "data": {
+        "workflow_run_id": "...",
+        "task_id": "...",
+        "items": [
+          {
+            "article_id": 101,
+            "score": 0.94,
+            "reason": "..."
+          }
+        ]
+      },
+      "error": null,
+      "meta": {...}
+    }
+    """
     if not isinstance(result, dict):
-        return {"raw": "중요도 결과를 해석하지 못했습니다."}
+        return []
 
-    data = result.get("data", result)
+    success = result.get("success", False)
+    if not success:
+        return []
 
-    if isinstance(data, dict):
-        outputs = data.get("outputs", {})
-        if isinstance(outputs, dict):
-            return (
-                outputs.get("scores")
-                or outputs.get("results")
-                or outputs
-            )
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return []
 
-    return {"raw": str(data)}
+    items = data.get("items", [])
+    if isinstance(items, list):
+        return items
+
+    return []

@@ -11,12 +11,19 @@ from app.models.article import Article
 from app.models.article_match import ArticleMatch
 from app.models.summary import Summary
 from app.models.keyword import Keyword
+from app.services.dify_service import DifyArticleUploadService
 
 
 class CrawlRunService:
-    def __init__(self, db: AsyncSession, transnews_client: TransNewsClient):
+    def __init__(
+        self,
+        db: AsyncSession,
+        transnews_client: TransNewsClient,
+        dify_upload_service: DifyArticleUploadService | None = None,
+    ):
         self.db = db
         self.transnews_client = transnews_client
+        self.dify_upload_service = dify_upload_service or DifyArticleUploadService()
 
     async def create_crawl_run(
         self,
@@ -25,12 +32,10 @@ class CrawlRunService:
         keyword_ids: list[int] | None = None,
         force: bool = False,
     ) -> dict[str, Any]:
-        # 1) 키워드 조회
         keywords = await self._get_user_keywords(user_id=user_id, keyword_ids=keyword_ids)
         if not keywords:
             raise ValueError("크롤링할 키워드가 없습니다.")
 
-        # 2) crawl_run 생성
         crawl_run = CrawlRun(
             user_id=user_id,
             status="RUNNING",
@@ -45,8 +50,8 @@ class CrawlRunService:
             self.db.add(CrawlRunKeyword(crawl_run_id=crawl_run.id, keyword_id=keyword.id))
 
         article_count = 0
+        newly_created_articles: list[Article] = []
 
-        # 3) 키워드별 뉴스 검색
         for keyword in keywords:
             news_response = await self.transnews_client.search_news(keyword.keyword_text)
             print("NEWS RESPONSE =", news_response)
@@ -59,11 +64,8 @@ class CrawlRunService:
             print("NEWS ITEMS COUNT =", len(news_items))
 
             for item in news_items:
-                print("RAW ITEM =", item)
-                print("MAPPED URL =", item.get("url") or item.get("link"))
-
-                article = await self._upsert_article(item)
-                print("UPSERT RESULT =", article)
+                article, is_new = await self._upsert_article(item)
+                print("UPSERT RESULT =", article, "IS_NEW =", is_new)
 
                 if article is None:
                     print("SKIP: article is None")
@@ -75,26 +77,12 @@ class CrawlRunService:
                     crawl_run_id=crawl_run.id,
                 )
 
-                #summary만드는 부분
-                # try:
-                #     summary_response = await self.transnews_client.summarize_news(article.url)
-                #     print("SUMMARY RESPONSE =", summary_response)
-
-                #     if summary_response.get("status") == "SUCCESS":
-                #         data = summary_response.get("data") or {}
-                #         content = data.get("content")
-                #         summary_text = data.get("summary")
-
-                #         if content:
-                #             article.content = content
-
-                #         if summary_text:
-                #             await self._upsert_summary(article.id, summary_text)
-                # except Exception as e:
-                #     print("SUMMARY FAILED =", e)
-                #     pass
+                if is_new:
+                    newly_created_articles.append(article)
 
                 article_count += 1
+
+        dify_result = await self._upload_new_articles_to_dify(newly_created_articles)
 
         crawl_run.status = "COMPLETED"
         crawl_run.article_count = article_count
@@ -107,7 +95,49 @@ class CrawlRunService:
             "crawl_run_id": crawl_run.id,
             "status": crawl_run.status,
             "article_count": crawl_run.article_count,
+            "new_article_count": len(newly_created_articles),
+            "dify_uploaded_count": dify_result["uploaded_count"],
+            "dify_failed_count": dify_result["failed_count"],
+            "dify_failed_items": dify_result["failed"],
         }
+
+    async def crawl_active_keywords(self) -> list[dict[str, Any]]:
+        from sqlalchemy import select
+        from app.models.user import User
+
+        result = await self.db.execute(select(User.id).distinct())
+        user_ids = [row[0] for row in result.all()]
+
+        outcomes: list[dict[str, Any]] = []
+
+        for user_id in user_ids:
+            try:
+                keywords = await self._get_user_keywords(user_id=user_id, keyword_ids=None)
+                if not keywords:
+                    continue
+
+                outcome = await self.create_crawl_run(
+                    user_id=user_id,
+                    keyword_ids=[k.id for k in keywords],
+                    force=False,
+                )
+                outcomes.append(
+                    {
+                        "user_id": user_id,
+                        "status": "COMPLETED",
+                        "result": outcome,
+                    }
+                )
+            except Exception as e:
+                outcomes.append(
+                    {
+                        "user_id": user_id,
+                        "status": "FAILED",
+                        "reason": str(e),
+                    }
+                )
+
+        return outcomes
 
     async def _get_user_keywords(self, *, user_id: int, keyword_ids: list[int] | None):
         from sqlalchemy import select
@@ -122,17 +152,11 @@ class CrawlRunService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def _upsert_article(self, item: dict[str, Any]) -> Article | None:
+    async def _upsert_article(self, item: dict[str, Any]) -> tuple[Article | None, bool]:
         from sqlalchemy import select
-        from email.utils import parsedate_to_datetime
-
-        print("RAW ITEM IN UPSERT =", item)
 
         url = item.get("url") or item.get("link")
-        print("FINAL URL =", url)
-
         published_raw = item.get("published_at") or item.get("published")
-        print("FINAL PUBLISHED RAW =", published_raw)
 
         published_at = None
         if published_raw:
@@ -141,11 +165,9 @@ class CrawlRunService:
             except Exception as e:
                 print("DATE PARSE FAILED =", published_raw, e)
 
-        print("PARSED DATE =", published_at)
-
         if not url:
             print("SKIP IN UPSERT: url is missing")
-            return None
+            return None, False
 
         title = item.get("title") or "제목 없음"
         publisher = item.get("publisher") or item.get("source")
@@ -162,7 +184,7 @@ class CrawlRunService:
             article.language = article.language or language
             if published_at is not None:
                 article.published_at = published_at
-            return article
+            return article, False
 
         article = Article(
             source_type="TRANSNEWS",
@@ -178,7 +200,7 @@ class CrawlRunService:
         await self.db.flush()
 
         print("NEW ARTICLE INSERTED, id =", article.id)
-        return article
+        return article, True
 
     async def _ensure_article_match(self, *, article_id: int, keyword_id: int, crawl_run_id: int):
         from sqlalchemy import select
@@ -202,6 +224,17 @@ class CrawlRunService:
             print(f"ARTICLE MATCH ADDED: article_id={article_id}, keyword_id={keyword_id}")
         else:
             print(f"ARTICLE MATCH EXISTS: article_id={article_id}, keyword_id={keyword_id}")
+
+    async def _upload_new_articles_to_dify(self, articles: list[Article]) -> dict[str, Any]:
+        if not articles:
+            return {
+                "uploaded_count": 0,
+                "failed_count": 0,
+                "uploaded": [],
+                "failed": [],
+            }
+
+        return await self.dify_upload_service.upload_articles_to_knowledge(articles)
 
     async def _upsert_summary(self, article_id: int, summary_text: str):
         from sqlalchemy import select

@@ -1,0 +1,50 @@
+import asyncio
+import logging
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from app.core.config import settings
+from app.core.transnews_client import TransNewsClient
+from app.db.session import engine
+from app.services.crawl_run_service import CrawlRunService
+
+logger = logging.getLogger(__name__)
+
+scheduler = AsyncIOScheduler()
+SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
+
+
+async def run_periodic_crawling() -> None:
+    logger.info("정기 크롤링 시작")
+
+    async with SessionLocal() as db:
+        service = CrawlRunService(
+            db=db,
+            transnews_client=TransNewsClient(),
+        )
+        result = await service.crawl_active_keywords()
+        logger.info("정기 크롤링 종료: %s", result)
+
+
+def start_scheduler() -> None:
+    if scheduler.running:
+        return
+
+    interval_minutes = getattr(settings, "crawl_scheduler_interval_minutes", 30)
+
+    scheduler.add_job(
+        lambda: asyncio.create_task(run_periodic_crawling()),
+        trigger="interval",
+        minutes=interval_minutes,
+        id="periodic-crawl-job",
+        replace_existing=True,
+    )
+    scheduler.start()
+    logger.info("크롤링 스케줄러 시작: %s분 간격", interval_minutes)
+
+
+def shutdown_scheduler() -> None:
+    if scheduler.running:
+        scheduler.shutdown()
+        logger.info("크롤링 스케줄러 종료")

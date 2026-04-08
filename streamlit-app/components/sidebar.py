@@ -6,19 +6,15 @@ from pathlib import Path
 import api.keywords
 from components.login_box import render_login_box
 from utils.session import reset_chat, set_selected_keyword
+
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(ENV_PATH)
 LOGIN_DISABLED = os.getenv("LOGIN_DISABLED", "false").lower() == "true"
 
+
 def render_sidebar():
     st.sidebar.title("키워드 관리")
 
-    # render_login_box()
-
-    # if not st.session_state.get("is_logged_in"):
-    #     st.sidebar.info("로그인 후 키워드를 조회할 수 있습니다.")
-    #     return
-    
     if not LOGIN_DISABLED:
         render_login_box()
 
@@ -27,21 +23,20 @@ def render_sidebar():
             return
     else:
         st.sidebar.caption("개발 모드: 로그인 비활성화")
-        
-        
+
     try:
         keywords, page_info = api.keywords.get_keywords(page=1, size=100)
         st.session_state["keyword_page_info"] = page_info
     except Exception as e:
         st.sidebar.error(f"키워드 목록 조회 실패: {e}")
         keywords = []
+
     keyword_ids = {kw.get("id") for kw in keywords if kw.get("id") is not None}
     selected_keyword_id = st.session_state.get("selected_keyword_id")
 
     if selected_keyword_id and selected_keyword_id not in keyword_ids:
         st.session_state["selected_keyword_id"] = None
         st.session_state["selected_keyword_name"] = None
-        st.sidebar.subheader("키워드 리스트")
 
     if not keywords:
         st.sidebar.info("등록된 키워드가 없습니다.")
@@ -96,9 +91,11 @@ def render_sidebar():
             st.sidebar.warning("키워드를 입력해주세요.")
         else:
             try:
-                result = api.keywords.create_keyword_and_crawl(new_keyword.strip())
+                with st.sidebar:
+                    with st.spinner("키워드 등록, 기사 크롤링, Dify 적재 요청 중..."):
+                        result = api.keywords.create_keyword_and_crawl(new_keyword.strip())
 
-                created_keyword = result.get("keyword", {})
+                created_keyword = result.get("data", {}).get("keyword", result.get("keyword", {}))
                 created_keyword_id = created_keyword.get("id")
                 created_keyword_name = created_keyword.get("keyword", new_keyword.strip())
 
@@ -106,7 +103,26 @@ def render_sidebar():
                     set_selected_keyword(created_keyword_id, created_keyword_name)
                     reset_chat()
 
-                st.sidebar.success("키워드 등록 및 크롤링 요청 완료")
+                crawl_count = result.get("data", {}).get("crawl_count")
+                uploaded_count = result.get("data", {}).get("dify_uploaded_count")
+                failed_count = result.get("data", {}).get("dify_failed_count")
+
+                st.sidebar.success("키워드 등록 및 크롤링 요청이 완료되었습니다.")
+
+                if crawl_count is not None:
+                    st.sidebar.caption(f"수집 기사 수: {crawl_count}")
+
+                if uploaded_count is not None:
+                    st.sidebar.caption(f"Dify 적재 성공: {uploaded_count}")
+
+                if failed_count is not None and failed_count > 0:
+                    st.sidebar.warning(f"Dify 적재 실패: {failed_count}건")
+
+                st.sidebar.info(
+                    "기사는 DB에 저장되고 Dify Knowledge에도 적재됩니다. "
+                    "다만 인덱싱이 끝나기 전까지는 AI 채팅 검색 결과에 바로 반영되지 않을 수 있습니다."
+                )
+
                 st.rerun()
 
             except Exception as e:

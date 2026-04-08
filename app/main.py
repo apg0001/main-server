@@ -1,19 +1,17 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
-
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.errors import AppError, ErrorCode
 from app.core.middleware import RequestIDMiddleware
 from app.core.response import error_response
-
 from app.db.base import Base
 from app.db.session import engine
 from app.models.user import User
 from app.models.credit import CreditWallet, CreditTransaction
 from app.models.auth_refresh_token import AuthRefreshToken
-
+from app.services.crawl_scheduler_service import start_scheduler, shutdown_scheduler
 
 app = FastAPI(
     title=settings.app_name,
@@ -23,12 +21,20 @@ app = FastAPI(
 app.add_middleware(RequestIDMiddleware)
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
+
 @app.on_event("startup")
 async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
-        
+
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    shutdown_scheduler()
+
+
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
     return error_response(
