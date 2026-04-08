@@ -514,11 +514,11 @@ class ArticleRepository:
             "article_id": article_id,
         }
     
-        async def get_articles_for_importance_scoring(
-            self,
-            user_id: int,
-            article_ids: list[int],
-        ) -> list[dict]:
+    async def get_articles_for_importance_scoring(
+        self,
+        user_id: int,
+        article_ids: list[int],
+    ) -> list[dict]:
             if not article_ids:
                 return []
 
