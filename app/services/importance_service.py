@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.importance_score import ImportanceScore
 from app.repositories.importance_repository import ImportanceRepository
 from app.repositories.article_repository import ArticleRepository
-from app.services.dify_service import DifyService
 
 
 class ImportanceService:
@@ -13,7 +12,6 @@ class ImportanceService:
         self.db = db
         self.importance_repository = ImportanceRepository(db)
         self.article_repository = ArticleRepository(db)
-        self.dify_service = DifyService.from_settings()
 
     async def save_score(
         self,
@@ -56,6 +54,27 @@ class ImportanceService:
             query=query,
         )
 
+    async def get_article_importance(self, user_id: int, article_id: int):
+        await self.article_repository.validate_articles_exist_and_accessible(
+            user_id=user_id,
+            article_ids=[article_id],
+        )
+
+        result = await self.importance_repository.get_current_score(
+            user_id=user_id,
+            article_id=article_id,
+        )
+
+        if result is None:
+            return {
+                "article_id": article_id,
+                "score": None,
+                "reason": None,
+                "status": "NOT_FOUND",
+            }
+
+        return result
+
     async def run_importance_scoring(self, user_id: int, article_ids: list[int]):
         await self.article_repository.validate_articles_exist_and_accessible(
             user_id=user_id,
@@ -67,50 +86,24 @@ class ImportanceService:
             article_ids=article_ids,
         )
 
-        dify_articles = []
-        for article in articles:
-            dify_articles.append(
-                {
-                    "article_id": article["article_id"],
-                    "title": article["title"],
-                    "content": article["content"],
-                }
-            )
-
-        import json
-        dify_result = await self.dify_service.run_importance_workflow(
-            user_id=user_id,
-            articles=json.dumps(dify_articles, ensure_ascii=False),
-        )
-
-        items = dify_result.get("data", {}).get("items", [])
-
         saved_items = []
-        for item in items:
+        for article in articles:
             row = await self.save_score(
-                article_id=item["article_id"],
+                article_id=article["article_id"],
                 user_id=user_id,
-                score=float(item["score"]),
-                reason=item.get("reason"),
+                score=0.5,
+                reason="temporary default score",
             )
             saved_items.append(
                 {
                     "article_id": row.article_id,
                     "score": row.score,
-                    "reason": row.reason,
                     "status": row.status,
+                    "reason": row.reason,
                 }
             )
-
-        await self.db.commit()
 
         return {
             "items": saved_items,
             "count": len(saved_items),
         }
-        
-    async def get_article_importance(self, user_id: int, article_id: int):
-        return await self.importance_repository.get_current_score(
-            user_id=user_id,
-            article_id=article_id,
-        )

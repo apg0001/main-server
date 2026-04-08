@@ -74,10 +74,10 @@ async def get_articles(
             detail=str(e),
         )
 
-
 @router.get("/{article_id}")
 async def get_article_detail(
     article_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
@@ -88,7 +88,7 @@ async def get_article_detail(
             user_id=current_user.id,
             article_id=article_id,
         )
-        return success_response(data=result.model_dump())
+        return success_response(request=request, data=result.model_dump())
 
     except ValueError as e:
         if str(e) == "NOT_FOUND":
@@ -108,43 +108,6 @@ async def get_article_detail(
                 detail="You do not have permission to access this article",
             )
         raise
-
-
-@router.get("/{article_id}/importance")
-async def get_article_importance(
-    article_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_or_dev_user),
-):
-    service = ArticleService(db)
-
-    try:
-        result = await service.get_article_importance(
-            user_id=current_user.id,
-            article_id=article_id,
-        )
-        return success_response(data=result.model_dump())
-
-    except ValueError as e:
-        if str(e) == "NOT_FOUND":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="article not found",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-    except PermissionError as e:
-        if str(e) == "FORBIDDEN":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access this article",
-            )
-        raise
-
-
 
 @router.get("/{article_id}/feedback")
 async def get_my_article_feedback(
@@ -231,7 +194,7 @@ async def delete_my_article_feedback(
         await db.rollback()
         raise
 
-@router.get("/articles/{article_id}/importance")
+@router.get("/{article_id}/importance")
 async def get_article_importance(
     article_id: int,
     request: Request,
@@ -239,8 +202,29 @@ async def get_article_importance(
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ImportanceService(db)
-    result = await service.get_article_importance(
-        user_id=current_user.id,
-        article_id=article_id,
-    )
-    return success_response(request=request, data=result)
+
+    try:
+        result = await service.get_article_importance(
+            user_id=current_user.id,
+            article_id=article_id,
+        )
+        return success_response(request=request, data=result)
+
+    except ValueError as e:
+        if str(e) == "NOT_FOUND":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="article not found",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    except PermissionError as e:
+        if str(e) == "FORBIDDEN":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access this article",
+            )
+        raise

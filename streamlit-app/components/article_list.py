@@ -8,6 +8,22 @@ from api.articles import (
 )
 
 
+def extract_summary_text(result):
+    if not isinstance(result, dict):
+        return "요약 결과를 해석하지 못했습니다."
+
+    summary_text = (
+        result.get("summary_text")
+        or result.get("text")
+        or result.get("result")
+    )
+
+    if isinstance(summary_text, str) and summary_text.strip():
+        return summary_text
+
+    return str(result)
+
+
 def render_article_list():
     st.subheader("기사 목록")
 
@@ -41,20 +57,10 @@ def render_article_list():
             if importance is not None:
                 st.write(f"중요도: {importance}")
 
-            summary_data = st.session_state.get(f"article_summary_{article_id}")
-            if summary_data:
-                st.markdown("##### 요약 결과")
+            if summary:
+                st.write(summary)
 
-                if isinstance(summary_data, dict):
-                    summary_text = summary_data.get("summary_text") or summary_data.get("text")
-                    if summary_text:
-                        st.write(summary_text)
-                    else:
-                        st.json(summary_data)
-                else:
-                    st.write(summary_data)
-
-            col1, col2= st.columns(3)
+            col1, col2, col3 = st.columns(3)
 
             if col1.button("상세", key=f"detail_{article_id}"):
                 try:
@@ -64,11 +70,17 @@ def render_article_list():
 
             if col2.button("요약", key=f"summary_{article_id}"):
                 try:
-                    st.session_state[f"article_summary_{article_id}"] = request_article_summary(article_id)
+                    result = request_article_summary(article_id)
+                    st.session_state[f"article_summary_{article_id}"] = extract_summary_text(result)
                 except Exception as e:
                     st.error(f"요약 요청 실패: {e}")
 
-           
+            if col3.button("중요도", key=f"importance_{article_id}"):
+                try:
+                    st.session_state[f"article_importance_{article_id}"] = get_article_importance(article_id)
+                except Exception as e:
+                    st.error(f"중요도 조회 실패: {e}")
+
             if url:
                 st.link_button("원문 링크", url)
 
@@ -80,7 +92,7 @@ def render_article_list():
             summary_data = st.session_state.get(f"article_summary_{article_id}")
             if summary_data:
                 st.markdown("##### 요약 결과")
-                st.json(summary_data)
+                st.write(summary_data)
 
             importance_data = st.session_state.get(f"article_importance_{article_id}")
             if importance_data:

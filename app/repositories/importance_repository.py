@@ -138,3 +138,30 @@ class ImportanceRepository:
             )
 
         await self.db.flush()
+        
+        
+    async def get_current_score(
+        self,
+        user_id: int,
+        article_id: int,
+    ) -> dict[str, Any] | None:
+        stmt = (
+            select(
+                ImportanceScore.article_id,
+                ImportanceScore.score,
+                ImportanceScore.reason,
+                ImportanceScore.status,
+                ImportanceScore.scored_at,
+                ImportanceScore.engine,
+                ImportanceScore.version,
+            )
+            .where(ImportanceScore.user_id == user_id)
+            .where(ImportanceScore.article_id == article_id)
+            .where(ImportanceScore.is_current.is_(True))
+            .order_by(ImportanceScore.id.desc())
+            .limit(1)
+        )
+
+        result = await self.db.execute(stmt)
+        row = result.mappings().first()
+        return dict(row) if row else None
