@@ -65,25 +65,27 @@ def batch_create_keywords(keywords: list[str], language: str = DEFAULT_LANGUAGE)
     return api_post("/keywords/batch", payload)
 
 
-def batch_create_keywords_and_crawl(keywords: list[str], language: str = DEFAULT_LANGUAGE):
-    created = batch_create_keywords(keywords=keywords, language=language)
+def create_keyword_and_crawl(keyword: str, language: str = DEFAULT_LANGUAGE):
+    created = create_keyword(keyword=keyword, language=language)
 
-    items = created.get("items", [])
-    created_keyword_ids = [
-        item["id"]
-        for item in items
-        if item.get("status") == "CREATED" and item.get("id") is not None
-    ]
+    keyword_id = created.get("id")
+    if not keyword_id:
+        raise ValueError(f"키워드 생성 응답에 id가 없습니다: {created}")
 
-    crawl_result = None
-    if created_keyword_ids:
-        crawl_result = create_crawl_run(keyword_ids=created_keyword_ids, force=False)
+    try:
+        crawl_result = create_crawl_run(keyword_ids=[keyword_id], force=False)
+    except Exception as e:
+        return {
+            "keyword": created,
+            "crawl_run": None,
+            "crawl_error": str(e),
+        }
 
     return {
-        "keywords": created,
+        "keyword": created,
         "crawl_run": crawl_result,
+        "crawl_error": None,
     }
-
 
 def update_keyword_active(keyword_id: int, is_active: bool):
     payload = {"is_active": is_active}

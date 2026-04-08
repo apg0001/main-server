@@ -40,8 +40,13 @@ def render_sidebar():
     except Exception as e:
         st.sidebar.error(f"키워드 목록 조회 실패: {e}")
         keywords = []
+    keyword_ids = {kw.get("id") for kw in keywords if kw.get("id") is not None}
+    selected_keyword_id = st.session_state.get("selected_keyword_id")
 
-    st.sidebar.subheader("키워드 리스트")
+    if selected_keyword_id and selected_keyword_id not in keyword_ids:
+        st.session_state["selected_keyword_id"] = None
+        st.session_state["selected_keyword_name"] = None
+        st.sidebar.subheader("키워드 리스트")
 
     if not keywords:
         st.sidebar.info("등록된 키워드가 없습니다.")
