@@ -30,11 +30,17 @@ def render_header():
         st.warning("왼쪽 사이드바에서 로그인하세요.")
         return
 
-    selected_keyword = st.session_state.get("selected_keyword_name")
-    if selected_keyword:
-        st.info(f"현재 선택된 키워드: {selected_keyword}")
-    else:
+    
+    selected_keyword_id = st.session_state.get("selected_keyword_id")
+
+    if not selected_keyword_id:
         st.warning("왼쪽 사이드바에서 키워드를 선택하세요.")
+        st.stop()
+        
+    render_summary_cards()
+    render_article_list()
+    render_chat_box()
+
 
 
 def main():
