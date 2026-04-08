@@ -13,7 +13,13 @@ def get_articles(keyword_id=None, page=1, size=10, q=None, sort="published_at_de
     if q:
         params["q"] = q
 
-    result = api_get("/articles", params=params)
+    try:
+        result = api_get("/articles", params=params)
+    except Exception as e:
+        error_text = str(e)
+        if "404" in error_text or "Not Found" in error_text:
+            return [], {"page": page, "size": size, "total": 0}
+        raise
 
     items = result.get("items", []) if isinstance(result, dict) else []
     page_info = result.get("page_info") if isinstance(result, dict) else None
