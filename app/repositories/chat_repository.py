@@ -87,7 +87,7 @@ class ChatRepository:
         last_message_at: datetime | None,
     ) -> None:
 
-        if external_conversaton_id and not chat.external_conversation_id:
+        if external_conversation_id and not chat.external_conversation_id:
             chat.external_conversation_id = external_conversation_id
 
         chat.last_message = last_message

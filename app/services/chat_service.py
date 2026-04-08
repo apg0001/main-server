@@ -126,3 +126,28 @@ class ChatService:
             conversation_id=new_conversation_id,
             created_at=created_at,
         )
+    async def create_chat(
+        self,
+        user_id: int,
+        payload,
+    ):
+        title = (payload.title or "").strip()
+
+        if not title:
+            raise ValueError("채팅방 제목은 비어 있을 수 없습니다.")
+
+        chat = await self.repository.create_chat(
+            user_id=user_id,
+            title=title,
+            context_type=payload.context_type,
+        )
+
+        return ChatDetailResponse(
+            id=chat.id,
+            title=chat.title,
+            context_type=chat.context_type,
+            external_conversation_id=chat.external_conversation_id,
+            last_message=chat.last_message,
+            last_message_at=chat.last_message_at,
+            created_at=chat.created_at,
+        )
