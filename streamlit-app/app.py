@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from components.article_list import render_article_list
 from components.chat_box import render_chat_box
-from components.sidebar import render_sidebar
+from components.sidebar import LOGIN_DISABLED, render_sidebar
 from components.summary_cards import render_summary_cards
 from utils.session import init_state
 
@@ -26,7 +26,7 @@ def render_header():
     st.title(APP_TITLE)
     st.caption("메인서버 + AI서버 연동 Streamlit 화면")
 
-    if not st.session_state.get("is_logged_in"):
+    if not LOGIN_DISABLED and not st.session_state.get("is_logged_in"):
         st.warning("왼쪽 사이드바에서 로그인하세요.")
         return
 
