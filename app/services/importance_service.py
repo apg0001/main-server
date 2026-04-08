@@ -1,10 +1,13 @@
+import json
 from datetime import datetime, timezone
+
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.importance_score import ImportanceScore
 from app.repositories.importance_repository import ImportanceRepository
 from app.repositories.article_repository import ArticleRepository
+from app.services.dify_service import DifyService
 
 
 class ImportanceService:
@@ -12,6 +15,7 @@ class ImportanceService:
         self.db = db
         self.importance_repository = ImportanceRepository(db)
         self.article_repository = ArticleRepository(db)
+        self.dify_service = DifyService.from_settings()
 
     async def save_score(
         self,
@@ -86,24 +90,78 @@ class ImportanceService:
             article_ids=article_ids,
         )
 
-        saved_items = []
-        for article in articles:
-            row = await self.save_score(
-                article_id=article["article_id"],
-                user_id=user_id,
-                score=0.5,
-                reason="temporary default score",
-            )
-            saved_items.append(
+        # Dify 명세에 맞게 articles를 JSON 직렬화된 문자열로 전달
+        articles_payload = json.dumps(
+            [
                 {
-                    "article_id": row.article_id,
-                    "score": row.score,
-                    "status": row.status,
-                    "reason": row.reason,
+                    "article_id": article["article_id"],
+                    "title": article["title"],
+                    "content": article["content"],
                 }
+                for article in articles
+            ],
+            ensure_ascii=False,
+        )
+
+        try:
+            dify_result = await self.dify_service.run_importance_workflow(
+                user_id=user_id,
+                articles=articles_payload,
             )
 
-        return {
-            "items": saved_items,
-            "count": len(saved_items),
-        }
+            data = dify_result.get("data") or {}
+            items = data.get("items") or []
+
+            if not isinstance(items, list):
+                raise RuntimeError("Dify importance response items is not a list.")
+
+            saved_items = []
+            for item in items:
+                article_id = item.get("article_id")
+                score = item.get("score")
+                reason = item.get("reason")
+
+                if article_id is None or score is None:
+                    raise RuntimeError(
+                        f"Invalid importance item from Dify: {item}"
+                    )
+
+                row = await self.save_score(
+                    article_id=int(article_id),
+                    user_id=user_id,
+                    score=float(score),
+                    reason=reason,
+                )
+
+                saved_items.append(
+                    {
+                        "article_id": row.article_id,
+                        "score": row.score,
+                        "reason": row.reason,
+                    }
+                )
+
+            await self.db.commit()
+
+            return {
+                "success": True,
+                "data": {
+                    "workflow_run_id": data.get("workflow_run_id"),
+                    "task_id": data.get("task_id"),
+                    "items": saved_items,
+                },
+                "error": None,
+                "meta": dify_result.get("meta"),
+            }
+
+        except Exception as e:
+            await self.db.rollback()
+            return {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "UPSTREAM_ERROR",
+                    "message": f"Failed to execute importance workflow: {str(e)}",
+                },
+                "meta": None,
+            }
