@@ -47,7 +47,7 @@ async def get_articles(
             },
         )
 
-        service = ArticleService(ArticleRepository(db))
+        service = ArticleService(db)
         result = await service.get_article_list(user_id=current_user.id, query=query)
         return success_response(request=request, data=result.model_dump())
 
@@ -64,7 +64,7 @@ async def get_article_detail(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
-    service = ArticleService(ArticleRepository(db))
+    service = ArticleService(db)
 
     try:
         result = await service.get_article_detail(
@@ -99,7 +99,7 @@ async def get_article_importance(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
-    service = ArticleService(ArticleRepository(db))
+    service = ArticleService(db)
 
     try:
         result = await service.get_article_importance(
@@ -135,7 +135,7 @@ async def get_my_article_feedback(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
-    service = ArticleService(ArticleRepository(db))
+    service = ArticleService(db)
 
     try:
         result = await service.get_my_feedback_by_article(
@@ -170,7 +170,7 @@ async def delete_my_article_feedback(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
-    service = ArticleService(ArticleRepository(db))
+    service = ArticleService(db)
 
     try:
         result = await service.delete_my_feedback_by_article(
