@@ -5,12 +5,7 @@ from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
 from app.repositories.article_repository import ArticleRepository
-from app.schemas.articles import (
-    ArticleFeedbackRequest,
-    ArticleLanguage,
-    ArticleListQuery,
-    ArticleSort,
-)
+import app.schemas.articles
 from app.services.article_service import ArticleService
 
 router = APIRouter(prefix="/articles", tags=["articles"])
@@ -23,19 +18,19 @@ async def get_articles(
     size: int = Query(20, ge=1, le=100),
     keyword_id: int | None = Query(None, ge=1),
     q: str | None = Query(None),
-    language: ArticleLanguage | None = Query(None),
+    language: app.schemas.articles.ArticleLanguage | None = Query(None),
     from_date: str | None = Query(None, alias="from"),
     to_date: str | None = Query(None, alias="to"),
     min_importance: float | None = Query(None, ge=0.0, le=1.0),
     max_importance: float | None = Query(None, ge=0.0, le=1.0),
     has_feedback: bool | None = Query(None),
     liked: bool | None = Query(None),
-    sort: ArticleSort = Query(ArticleSort.published_at_desc),
+    sort: app.schemas.articles.ArticleSort = Query(app.schemas.articles.ArticleSort.published_at_desc),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user_or_dev_user),
 ):
     try:
-        query = ArticleListQuery(
+        query = app.schemas.articles.ArticleListQuery(
             page=page,
             size=size,
             keyword_id=keyword_id,

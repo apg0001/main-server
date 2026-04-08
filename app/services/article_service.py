@@ -23,3 +23,9 @@ class ArticleService:
             .order_by(Article.published_at.desc())
         )
         return list(result.scalars().all())
+    
+    async def get_article_list(self, user_id: int, query):
+        return await self.article_repository.get_article_list(
+            user_id=user_id,
+            query=query,
+        )
