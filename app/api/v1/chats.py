@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
 from app.repositories.chat_repository import ChatRepository
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/chats", tags=["chats"])
 async def create_chat(
     payload: ChatCreateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ChatService(ChatRepository(db))
 
@@ -51,7 +51,7 @@ async def get_chats(
     q: str | None = Query(None),
     context_type: ChatContextType | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ChatService(ChatRepository(db))
 
@@ -79,7 +79,7 @@ async def get_chats(
 async def get_chat_detail(
     chat_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ChatService(ChatRepository(db))
 
@@ -115,7 +115,7 @@ async def send_chat_message(
     chat_id: int,
     payload: ChatSendMessageRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ChatService(ChatRepository(db))
 

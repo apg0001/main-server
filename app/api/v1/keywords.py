@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.transnews_client import TransNewsClient
 from app.services.crawl_run_service import CrawlRunService
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
 from app.schemas.keyword import (
@@ -29,7 +29,7 @@ async def create_keyword_api(
     request: Request,
     payload: CreateKeywordRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     data = await create_user_keyword(
         db=db,
@@ -56,7 +56,7 @@ async def get_keyword_list_api(
     language: str | None = Query(None),
     q: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     data = await get_my_keywords(
         db=db,
@@ -76,7 +76,7 @@ async def update_keyword_status_api(
     keyword_id: int,
     payload: UpdateKeywordStatusRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     data = await patch_keyword_is_active(
         db=db,
@@ -92,7 +92,7 @@ async def delete_keyword_api(
     request: Request,
     keyword_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     data = await remove_keyword(
         db=db,
@@ -107,7 +107,7 @@ async def batch_create_keywords_api(
     request: Request,
     payload: BatchCreateKeywordRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     data = await batch_create_user_keywords(
         db=db,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
 from app.repositories.article_repository import ArticleRepository
@@ -24,7 +24,7 @@ async def list_importance(
     status: str | None = Query(None),
     sort: str = Query("scored_at_desc"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     query = ImportanceListQuery(
         page=page,
@@ -49,7 +49,7 @@ async def list_importance(
 async def run_importance(
     payload: ImportanceRunRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ImportanceService(
         repository=ImportanceRepository(db),

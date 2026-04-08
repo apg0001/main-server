@@ -1,5 +1,6 @@
 # DB session 제공
 # 현재 사용자 가져오기
+import os
 from collections.abc import AsyncGenerator
 
 from fastapi import Depends
@@ -17,7 +18,23 @@ from app.repositories.user_repository import get_user_by_id
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
- 
+
+
+LOGIN_DISABLED = os.getenv("LOGIN_DISABLED", "false").lower() == "true"
+
+
+async def get_dev_user() -> User:
+    user = User()
+    user.id = 1
+    user.email = "dev@example.com"
+    return user
+
+
+async def get_current_user_or_dev_user():
+    if LOGIN_DISABLED:
+        return await get_dev_user()
+    return await get_current_user()
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session

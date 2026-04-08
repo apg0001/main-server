@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
 from app.repositories.article_repository import ArticleRepository
@@ -32,7 +32,7 @@ async def get_articles(
     liked: bool | None = Query(None),
     sort: ArticleSort = Query(ArticleSort.published_at_desc),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     try:
         query = ArticleListQuery(
@@ -67,7 +67,7 @@ async def get_articles(
 async def get_article_detail(
     article_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ArticleService(ArticleRepository(db))
 
@@ -102,7 +102,7 @@ async def get_article_detail(
 async def get_article_importance(
     article_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ArticleService(ArticleRepository(db))
 
@@ -138,7 +138,7 @@ async def get_article_importance(
 async def get_my_article_feedback(
     article_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ArticleService(ArticleRepository(db))
 
@@ -173,7 +173,7 @@ async def get_my_article_feedback(
 async def delete_my_article_feedback(
     article_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     service = ArticleService(ArticleRepository(db))
 

@@ -11,7 +11,7 @@ from utils.session import init_state
 
 load_dotenv()
 
-APP_TITLE = os.getenv("APP_TITLE", "AI 기반 기사 모니터링")
+APP_TITLE = os.getenv("APP_TITLE", "AI Agent 기반 기사 모니터링")
 
 st.set_page_config(
     page_title=APP_TITLE,

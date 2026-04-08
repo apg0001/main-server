@@ -1,9 +1,4 @@
 import os
-from typing import Any, Dict, Optional
-
-import requests
-import streamlit as st
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -18,13 +13,6 @@ load_dotenv(dotenv_path=ENV_PATH)
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
 TIMEOUT = 20
 
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8001/api/v1")
-AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost/v1")
-TIMEOUT = 20
-
-CHATFLOW_API_KEY = os.getenv("CHATFLOW_API_KEY")
-SUMMARY_WORKFLOW_API_KEY = os.getenv("SUMMARY_WORKFLOW_API_KEY")
-SCORING_WORKFLOW_API_KEY = os.getenv("SCORING_WORKFLOW_API_KEY")
 
 class APIError(Exception):
     pass
@@ -97,18 +85,17 @@ def _request(
     return handle_response(response)
 
 
-def api_get(path: str, params: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
+def api_get(path: str, params: Optional[Dict[str, Any]] = None, with_auth: bool = False) -> Any:
     return _request("GET", BASE_URL, path, params=params, with_auth=with_auth)
 
 
-def api_post(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
+def api_post(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = False) -> Any:
     return _request("POST", BASE_URL, path, data=data, with_auth=with_auth)
 
 
-def api_patch(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = True) -> Any:
+def api_patch(path: str, data: Optional[Dict[str, Any]] = None, with_auth: bool = False) -> Any:
     return _request("PATCH", BASE_URL, path, data=data, with_auth=with_auth)
 
 
-def api_delete(path: str, with_auth: bool = True) -> Any:
+def api_delete(path: str, with_auth: bool = False) -> Any:
     return _request("DELETE", BASE_URL, path, with_auth=with_auth)
-

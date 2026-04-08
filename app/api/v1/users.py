@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user_or_dev_user, get_db
 from app.core.response import success_response
 from app.models.user import User
 from app.schemas.user import MeResponse, UpdateMeRequest
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("/me")
 async def get_me(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     data = MeResponse(
         id=current_user.id,
@@ -29,7 +29,7 @@ async def update_me(
     request: Request,
     payload: UpdateMeRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_dev_user),
 ):
     update_data = payload.model_dump(exclude_unset=True)
 
