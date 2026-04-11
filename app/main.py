@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
+
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.errors import AppError, ErrorCode
