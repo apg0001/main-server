@@ -19,7 +19,7 @@ def render_chat_box():
             st.write(msg["content"])
 
     prompt = st.chat_input("예: 하이닉스 관련 기사 흐름 요약해줘")
-
+    print(prompt)
     if prompt:
         selected_article_id = st.session_state.get("selected_article_id")
         conversation_id = st.session_state.get("chat_conversation_id", "")
@@ -36,13 +36,18 @@ def render_chat_box():
                     if not chat_id:
                         raise ValueError("선택된 채팅방이 없습니다. 먼저 채팅방을 선택하거나 생성하세요.")
 
+                    print(chat_id)
+                    print(prompt)
+                    print(selected_article_id)
+                    print(conversation_id)
+
                     result = send_chat_message(
                         chat_id=chat_id,
                         message=prompt,
                         article_id=selected_article_id,
                         conversation_id=conversation_id,
                     )
-
+                    print(result)
                     answer, new_conversation_id = extract_chat_result(result)
 
                     if new_conversation_id:

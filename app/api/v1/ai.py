@@ -102,7 +102,7 @@ async def summarize_article(
             articles=articles_payload,
         )
 
-        summary_text = result.get("data", {}).get("items", [])
+        summary_text = result.get("data", {}).get("summary_text")
 
         if not summary_text:
             raise ValueError("요약 결과를 찾을 수 없습니다.")

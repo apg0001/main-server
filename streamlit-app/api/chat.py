@@ -13,4 +13,5 @@ def send_chat_message(
         "article_id": article_id,
         "conversation_id": conversation_id,
     }
+    print(payload)
     return api_post(f"/chats/{chat_id}/messages", payload)

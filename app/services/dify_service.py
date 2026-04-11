@@ -1,6 +1,7 @@
 from typing import Any
 
 import httpx
+import json
 
 from app.core.config import settings
 from app.core.dify_knowledge_client import DifyKnowledgeClient, DifyKnowledgeClientError
@@ -66,16 +67,30 @@ class DifyService:
         payload = {
             "inputs": inputs,
             "query": message,
-            "conversation_id": conversation_id or "",
             "response_mode": "blocking",
-            "user": f"user-{user_id}",
+            "user": str(user_id),
         }
+
+        if conversation_id:
+            payload["conversation_id"] = conversation_id
+
+        print("\n=== DIFY CHAT PAYLOAD ===")
+        print(payload)
+        print("=========================\n")
 
         data = await self._post("/chat-messages", self.chatflow_api_key, payload)
 
+        print("\n=== DIFY CHAT RAW RESPONSE ===")
+        print(data)
+        print("=============================\n")
+
         return {
-            "conversation_id": data.get("conversation_id"),
-            "answer": data.get("answer"),
+            "success": True,
+            "data": {
+                "conversation_id": data.get("conversation_id"),
+                "answer": data.get("answer"),
+            },
+            "raw": data,
         }
         
     async def run_summary_workflow(
@@ -96,6 +111,7 @@ class DifyService:
         }
 
         data = await self._post("/workflows/run", self.summary_workflow_api_key, payload)
+
         print("\n=== 🔥 DIFY SUMMARY RAW RESPONSE ===")
         print(data)
         print("===================================\n")
@@ -103,17 +119,32 @@ class DifyService:
         result_data = data.get("data") or {}
         outputs = result_data.get("outputs") or {}
 
+        summary_text = None
+
+        raw_summary = (
+            outputs.get("summary")
+            or outputs.get("summary_text")
+            or outputs.get("result")
+            or outputs.get("text")
+        )
+
+        if isinstance(raw_summary, str):
+            cleaned = raw_summary.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.replace("```json", "").replace("```", "").strip()
+
+            try:
+                parsed = json.loads(cleaned)
+                summary_text = parsed.get("summary")
+            except Exception:
+                summary_text = cleaned  # JSON 아니면 그냥 텍스트
+                
         return {
             "success": data.get("success", True),
             "data": {
                 "workflow_run_id": result_data.get("workflow_run_id"),
                 "task_id": result_data.get("task_id"),
-                "summary_text": (
-                    outputs.get("summary")
-                    or outputs.get("summary_text")
-                    or outputs.get("result")
-                    or outputs.get("text")
-                ),
+                "summary_text": summary_text,
             },
             "error": data.get("error"),
             "meta": data.get("meta"),
